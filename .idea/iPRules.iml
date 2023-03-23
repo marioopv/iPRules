@@ -3,6 +3,9 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/data" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/RuleCosi/data" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/RuleCosi/rulecosi" />
+      <excludeFolder url="file://$MODULE_DIR$/notebooks/RuleFit/data" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
