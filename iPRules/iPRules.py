@@ -57,6 +57,9 @@ class iPRules(ClassifierMixin, BaseDecisionTree):
                  chi_square_probability=0.95,
                  scale_feature_coefficient=0.85
                  ):
+        self.positive_patterns = None
+        self.negative_patterns = None
+        self.obtain_patterns = None
         self.feature_importance_list = None
         self.most_important_features = None
         self.nodes = []
@@ -111,10 +114,7 @@ class iPRules(ClassifierMixin, BaseDecisionTree):
         # print('Matrix is:',matrix)
         stat, p, dof, expected = chi2_contingency(matrix, correction=False)
         critical = chi2.ppf(self.chi_square_probability, dof)
-        if abs(stat) >= critical:
-            return True
-        else:
-            return False
+        return True if abs(stat) >= critical else False
 
     def get_top_important_features_list(self):
         """
@@ -155,37 +155,39 @@ class iPRules(ClassifierMixin, BaseDecisionTree):
                             # Se parsea la query para representar el nivel.
                             aux_query = re.search("(.*) ==.*", aux_node.query)
                         # if has_enough_cases:  # Se calcula el p valor de los hermanos en ese subnivel
-                        np_matrix = np.array(aux_matrix).astype(float)
-                        np_matrix = np_matrix.transpose()
-                        has_pattern = self.has_pattern(np_matrix)
-                        if has_pattern:
-                            patterns.add(
-                                aux_query[1])  # Si se encuentra una regla que puede tener un patrón, se incluye.
+                        np_matrix = np.array(aux_matrix).astype(float).transpose()
+                        if self.has_pattern(np_matrix):
+                            patterns.add(aux_query[1])  # Si se encuentra una regla que puede tener un patrón, se incluye.
+
+        self.obtain_patterns = list(patterns)
         return patterns
 
-    def categorize_patterns(self, test_data, patterns, coefficient):
+    def categorize_patterns(self, test_data, coefficient):
         """
-
+        PSEUDO FIT
         :param test_data:
         :param patterns:
         :param coefficient:
         :return:
         """
+        # TODO: DEFINE RULES
         death_patterns = []
         surv_patterns = []
-        for i in range(0,
-                       len(patterns)):  # Checks all combinations found and checks for both 0 and 1 in the last pathology to study both cases.
+        for i in range(0, len(self.obtain_patterns)):  # Checks all combinations found and checks for both 0 and 1 in the last pathology to study both cases.
             values = [0, 1]
             for j in values:
-                query = patterns[i] + ' == ' + str(j)  # Adds the 0 or 1 to the last pathology
+                query = self.obtain_patterns[i] + ' == ' + str(j)  # Adds the 0 or 1 to the last pathology
                 deaths = len(test_data.query(query + f" & {self.target_value_name} == {self.target_true}"))
                 survs = len(test_data.query(query + f" & {self.target_value_name} == {self.target_false}"))
                 if survs + deaths > 0:  # If this pattern has existing cases in total in the training set, is included.
-                    if (deaths / (
-                            survs + deaths)) >= coefficient:  # Checks if the combinations show a pattern for death/surv
-                        death_patterns.append([patterns[i] + ' == ' + str(j), deaths, survs + deaths])
+                    if (deaths / (survs + deaths)) >= coefficient:  # Checks if the combinations show a pattern for death/surv
+                        death_patterns.append([self.obtain_patterns[i] + ' == ' + str(j), deaths, survs + deaths])
                     elif (survs / (survs + deaths)) >= coefficient:
-                        surv_patterns.append([patterns[i] + ' == ' + str(j), survs, survs + deaths])
+                        surv_patterns.append([self.obtain_patterns[i] + ' == ' + str(j), survs, survs + deaths])
+
+        self.positive_patterns = surv_patterns
+        self.negative_patterns = death_patterns
+
         return death_patterns, surv_patterns
 
     def binary_tree_generator(self, dataset, query='', node_value=0, feature_index=0, parent_id=-1):
@@ -272,6 +274,7 @@ class iPRules(ClassifierMixin, BaseDecisionTree):
         """
         # Fit base model
         print("Fit Ensemble Model")
+        # TODO: CHECK IF FITTED
         self.base_ensemble.fit(X_train, y_train)
 
         print("Extract feature importance list")
@@ -284,6 +287,8 @@ class iPRules(ClassifierMixin, BaseDecisionTree):
         # Genera el árbol binario y obtiene las combinaciones que indican que hay un patrón:
         self.binary_tree_generator(dataset=pandas_dataset)
 
+        print("Generate obtained patterns")
+        self.obtain_patterns()
         # self.tree_generator(dataset=pandas_dataset)
         return self
 
@@ -334,7 +339,9 @@ class iPRules(ClassifierMixin, BaseDecisionTree):
             return proba
 
     def __str__(self):
-        s = '> ------------------------------\n'
-        s += '> iPRules:\n'
-        s += '> ------------------------------\n'
-        return s + str(list(self.obtain_patterns())) + '\n'
+        display = '> ------------------------------\n'
+        display += '> iPRules:\n'
+        display += '> ------------------------------\n'
+        for num in range(len(self.obtain_patterns)):
+            display += f'Regla {num}: {self.obtain_patterns[num]}\n'
+        return display
