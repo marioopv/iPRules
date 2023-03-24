@@ -3,3 +3,5 @@
 /notebooks/RuleFit/data/
 /.idea
 .DS_Store
+data/mushrooms_combinations_negatives.csv
+data/mushrooms_combinations_positives.csv
