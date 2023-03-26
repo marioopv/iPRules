@@ -267,21 +267,8 @@ class iPRules(ClassifierMixin, BaseDecisionTree):
         :param previous_full_query: Variable auxiliar en la que se irá anexando las características junto con sus valores para generar las queries.
         :param node_value: Representa el valor de la característica en ese nodo en concreto.
         :param feature_index: índice auxiliar de la lista de características
-        :param parent_id:
         :param parent_node: node of the parent of current node
         :return:
-
-
-        (
-            rule :
-            comparer:
-            target_value:
-        )
-
-        GENERATE QUERY FROM list of
-
-                negative = len(test_data.query(query + self.target_class_negative.query))
-                positive = len(test_data.query(query + self.target_class_positive.query))
         """
         # En el caso de que queden características para ampliar el nivel:
         if feature_index < len(self.most_important_features):
@@ -348,15 +335,15 @@ class iPRules(ClassifierMixin, BaseDecisionTree):
                         self.binary_tree_generator(dataset, previous_full_query=full_rule_query, node_value=node_value,
                                                    feature_index=new_feature_index, parent_node=current_node)
 
-    def fit(self, pandas_dataset, X_train, y_train):
+    def fit(self, pandas_dataset):
         """
         Get list of top features and generate rules
         :param pandas_dataset:
         :return:
         """
         # Fit base model
-        print("Fit Ensemble Model")
-        self.base_ensemble.fit(X_train, y_train)
+        print("Check Ensemble Model is fitted")
+        check_is_fitted(self.base_ensemble)
 
         print("Extract feature importance list")
         # Feature Importance list
