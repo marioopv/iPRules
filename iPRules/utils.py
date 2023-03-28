@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class Node:
     def __init__(self,
                  ID,
@@ -71,10 +74,9 @@ class Pattern:
 
     def Predict(self, data_array):
         for comparer in self.full_feature_comparer:
-            index = self.feature_names.where(comparer.feature_name)[0][0]
-            if comparer.value != data_array[index]:
+            index = np.where(self.feature_names == comparer.feature_name)[0][0]
+            if float(comparer.value) != float(data_array[index]):
                 return None
-
         return self.target_value
 
     def __str__(self):

@@ -14,8 +14,8 @@ class iPRules(ClassifierMixin):
                  base_ensemble,
                  feature_names,
                  target_value_name="target",
-                 target_true="1",
-                 target_false="0",
+                 target_true=1,
+                 target_false=0,
                  chi_square_probability=0.95,
                  scale_feature_coefficient=0.85,
                  min_accuracy_coefficient=0.9,
@@ -338,12 +338,15 @@ class iPRules(ClassifierMixin):
 
         predictions = []
         for x in X:
+            categorize_rule = None
             for rule in sorted(self.rules_, key=lambda r: r.target_accuracy):
                 prediction = rule.Predict(x)
                 if prediction is not None:
                     predictions.append(prediction)
+                    categorize_rule = True
                     break
-            predictions.append(None)
+            if categorize_rule is None:
+                predictions.append(None)
 
         return predictions
 
