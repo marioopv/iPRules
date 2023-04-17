@@ -7,15 +7,11 @@ class Node:
                  PARENT_ID,
                  number_negatives,
                  number_positives,
-                 chi_sq_negative,
-                 chi_sq_positive,
                  full_feature_comparer=[]):
         self.ID = ID  # int
         self.PARENT_ID = PARENT_ID  # int
         self.number_negatives = number_negatives  # int
         self.number_positives = number_positives  # int
-        self.chi_sq_negative = chi_sq_negative  # float
-        self.chi_sq_positive = chi_sq_positive  # float
         self.full_feature_comparer = full_feature_comparer
         self.children = []  # list of int. Contiene todos los IDs de los hijos
 
@@ -53,12 +49,18 @@ class Pattern:
                  target_value,
                  feature_names,
                  full_feature_comparer,
+                 chi2_statistic,
                  p_value,
+                 chi2_critical_value,
+                 expected_freq,
                  number_target,
                  number_all,
                  target_accuracy):
         self.target_value = target_value  # str
         self.p_value = p_value  # str
+        self.chi2_statistic = chi2_statistic  # str
+        self.chi2_critical_value = chi2_critical_value  # str
+        self.expected_freq = expected_freq  # str
         self.full_feature_comparer = full_feature_comparer  # Node
         self.number_target = number_target
         self.number_all = number_all
@@ -84,6 +86,9 @@ class Pattern:
         display += f'> Numer of patterns: {len(self.full_feature_comparer)}:\n'
         display += f'> Target value: {self.target_value}\n' \
                    f'> P_value: {self.p_value}\n' \
+                   f'> expected_freq: {self.expected_freq}\n' \
+                   f'> Chi2 statistic: {self.chi2_statistic}\n' \
+                   f'> Chi2 critical_value: {self.chi2_critical_value}\n' \
                    f'> number_target: {self.number_target}\n' \
                    f'> number_all: {self.number_all}\n' \
                    f'> target_accuracy: {self.target_accuracy}\n' \
@@ -113,35 +118,3 @@ def concatenate_query(previous_full_query, rule_query):
         return f'{previous_full_query}  &  {rule_query}'
     return f'{rule_query}'
 
-
-def chi_sq_node(parent_number_negatives, parent_number_positives, parent_total,
-                number_negatives, number_positives, node_total,
-                epsilon_exp):
-    """
-    Calcula los coeficientes de chi-square usando los valores de muertes y
-    supervivencias del nodo en cuestión y del nodo padre
-    :return:
-    :param parent_number_negatives:
-    :param parent_number_positives:
-    :param number_negatives:
-    :param number_positives:
-    :param epsilon_exp:Coeficiente usado para evitar que la bondad de ajuste sea 0
-    :return: chisq_negatives, chisq_positives
-    @type parent_number_negatives: object
-    @param parent_number_negatives:
-    @param node_total:
-    """
-
-    # Expected values
-    expected_negatives = parent_number_negatives * node_total / parent_total
-    expected_positives = parent_number_positives * node_total / parent_total
-
-    if expected_negatives == 0:
-        expected_negatives = epsilon_exp
-    if expected_positives == 0:
-        expected_positives = epsilon_exp
-    # Los valores de chi-square
-    chis_square_negatives = ((number_negatives - expected_negatives) ** 2) / expected_negatives
-    chis_square_positives = ((number_positives - expected_positives) ** 2) / expected_positives
-
-    return chis_square_negatives, chis_square_positives

@@ -5,3 +5,6 @@
 .DS_Store
 data/mushrooms_combinations_negatives.csv
 data/mushrooms_combinations_positives.csv
+data/Test_mushrooms.txt
+iPRules/__pycache__/utils.cpython-310.pyc
+iPRules/__pycache__/iPRules.cpython-310.pyc
