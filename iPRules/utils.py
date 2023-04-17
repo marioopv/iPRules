@@ -98,7 +98,7 @@ class Pattern:
 
 
 def predict_unique_with_query(pandas_dataset, full_query):
-    return pandas_dataset.query(full_query)
+    return pandas_dataset.query(full_query, engine='python')
 
 
 def concatenate_query(previous_full_query, rule_query):

@@ -4,7 +4,7 @@ import numpy as np
 from scipy.stats import chi2_contingency, chi2
 from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.utils.validation import check_is_fitted
-
+from sklearn import preprocessing
 from iPRules.utils import FeatureComparer, Node, Pattern, chi_sq_node, concatenate_query, predict_unique_with_query
 
 
@@ -26,7 +26,6 @@ class iPRules(ClassifierMixin):
         self.rules_ = []
         self.feature_importance_list = None
         self.most_important_features_ = None
-        self.nodes_dict = {}  # TODO:
         self.nodes = []
         self.base_ensemble_ = base_ensemble
         self.feature_names = feature_names
@@ -100,8 +99,21 @@ class iPRules(ClassifierMixin):
         # Indices de las características mas significativas ordenadas
         index = np.argsort(self.feature_importance_list)[::-1].tolist()
         max_coefficient = self.feature_importance_list[index[0]]  # Valor de la característica más importante
-        coefficient_threshold = max_coefficient * (1 - self.scale_feature_coefficient)
-        return [self.feature_names[x] for x in index if self.feature_importance_list[x] >= coefficient_threshold]
+
+        # TODO: TAL VEZ NORMALIZAR??
+        X_train_minmax = preprocessing.MinMaxScaler().fit_transform(self.feature_importance_list.reshape(-1, 1))
+        import matplotlib.pyplot as plt
+        # data to be plotted
+        # plotting
+        plt.title("Features MinMaxScaler")
+        plt.xlabel("X MinMaxScaler")
+        plt.ylabel("Features")
+        plt.plot(X_train_minmax, color="green")
+        plt.show()
+        return [self.feature_names[x] for x in index if X_train_minmax[x] >= self.scale_feature_coefficient]
+
+        # coefficient_threshold = max_coefficient * (1 - self.scale_feature_coefficient)
+        # return [self.feature_names[x] for x in index if self.feature_importance_list[x] >= coefficient_threshold]
 
     def obtain_pattern_list_of_valid_nodes_with_pvalue(self):
         """
@@ -131,7 +143,7 @@ class iPRules(ClassifierMixin):
                 np_matrix = np.array(aux_matrix).astype(float).transpose()
                 statistic, p_value, dof, expected_freq, critical = self.chi2_values(np_matrix)
 
-                if True if abs(statistic) >= critical else False:  # TODO: DEFINE
+                if abs(statistic) >= critical:  # TODO: DEFINE
                     # Set rules and last value to NONE
                     current_full_feature_comparer = copy(node.full_feature_comparer)
                     last_value = copy(current_full_feature_comparer[-1])
@@ -179,15 +191,19 @@ class iPRules(ClassifierMixin):
                     if proportion_positives == 0.5:
                         continue
                     if proportion_positives >= self.min_accuracy_coefficient:
+                        # POSITIVES
                         new_rule.target_value = self.target_true
                         new_rule.number_target = number_positives
                         new_rule.target_accuracy = proportion_positives
                     else:
-
-                        proportion_negatives = number_positives / number_all
-                        new_rule.target_value = self.target_false
-                        new_rule.number_target = number_negatives
-                        new_rule.target_accuracy = proportion_negatives
+                        # NEGATIVES
+                        proportion_negatives = number_negatives / number_all
+                        if proportion_negatives >= self.min_accuracy_coefficient:
+                            new_rule.target_value = self.target_false
+                            new_rule.number_target = number_negatives
+                            new_rule.target_accuracy = proportion_negatives
+                        else:
+                            continue
                     self.rules_.append(new_rule)
             index += 1
         return self.rules_
@@ -302,6 +318,11 @@ class iPRules(ClassifierMixin):
         # List of top % important features in the model are obtained. This % regulated by coefficient between [0,1].
         self.most_important_features_ = self.get_top_important_features_list()
 
+        print(f'\t Original features {len(self.feature_importance_list)}')
+        print(f'\t Selected features {len(self.most_important_features_)}')
+        print(
+            f'\t Percentage of selected rules: {100 * len(self.most_important_features_) / len(self.feature_importance_list)} %')
+
         print("->Generate new tree based on list")
         # Genera el árbol binario y obtiene las combinaciones que indican que hay un patrón:
         self.binary_tree_generator(dataset=pandas_dataset)
@@ -350,11 +371,15 @@ class iPRules(ClassifierMixin):
 
         return predictions
 
-    def __str__(self):
+    def description(self):
         display = '> ------------------------------\n'
         display += '> iPRules (not ordered):\n'
         display += f'> Number of Rules {len(self.rules_)}:\n'
         display += '> ------------------------------\n'
+        return display
+
+    def __str__(self):
+        display = self.description()
         for num in range(len(self.rules_)):
             display += f'Rule {num}:\n {self.rules_[num]}'
 
