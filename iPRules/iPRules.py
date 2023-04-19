@@ -305,7 +305,6 @@ class iPRules(ClassifierMixin):
         :return:
         @param feature_importances:
         """
-        # TODO: CHECK TIMES and improve comments
 
         # List of top % important features in the model are obtained. This % regulated by coefficient between [0,1].
         self.get_top_important_features_list(feature_importances)
@@ -319,12 +318,23 @@ class iPRules(ClassifierMixin):
         if self.display_logs:
             print(f"Elapsed time to compute the binary_tree_generator: {elapsed_time:.3f} seconds")
 
+        # TODO: REMOVE
+        print(len(self.nodes_dict))
+        #for key, node in self.nodes_dict.items():
+        #    print(node)
+
         # Lista de nodos válidos
         start_time = time.time()
         self.obtain_pattern_list_of_valid_nodes_with_pvalue()
         elapsed_time = time.time() - start_time
         if self.display_logs:
-            print(f"Elapsed time to compute the obtain_pattern_list_of_valid_nodes_with_pvalue: {elapsed_time:.3f} seconds")
+            print(
+                f"Elapsed time to compute the obtain_pattern_list_of_valid_nodes_with_pvalue: {elapsed_time:.3f} seconds")
+
+        # TODO: REMOVE
+        print(len(self.pattern_list_valid_nodes))
+        #for pattern in self.pattern_list_valid_nodes:
+        #    print(pattern)
 
         # Categoriza patrones
         start_time = time.time()
@@ -335,7 +345,7 @@ class iPRules(ClassifierMixin):
 
         return self
 
-    def sorting(self, sorting_method):
+    def sorting(self, sorting_method="target_accuracy"):
         match sorting_method:
             case "target_accuracy":
                 return sorted(self.rules_, key=lambda r: r.target_accuracy, reverse=True)
@@ -388,15 +398,15 @@ class iPRules(ClassifierMixin):
         return predictions
 
     def description(self):
-        display = '> ------------------------------\n'
-        display += '> iPRules (not ordered):\n'
-        display += f'> Number of Rules {len(self.rules_)}:\n'
-        display += '> ------------------------------\n'
+        display = '> ++++++++++++++++++++++++++++\n'
+        display += f'> iPRules (not ordered) --  Number of Rules {len(self.rules_)}:\n'
+        display += '> ++++++++++++++++++++++++++++\n'
         return display
 
     def __str__(self):
         display = self.description()
-        for num in range(len(self.rules_)):
-            display += f'Rule {num}:\n {self.rules_[num]}'
+        sorted_rules = self.sorting()
+        for num in range(len(sorted_rules)):
+            display += f'Rule {num}:\n {sorted_rules[num]}'
 
         return display

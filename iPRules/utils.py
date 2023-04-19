@@ -23,8 +23,8 @@ class Node:
 
     def __str__(self):
         display = '> ------------------------------\n'
-        display += f'> Node ID: {self.ID}:\n'
-        display += f'> Numer of comparisons: {len(self.full_feature_comparer)}:\n'
+        display += f'>** Node ID: {self.ID} '
+        display += f'** Numer of comparisons: {len(self.full_feature_comparer)}:\n'
         display += '> ------------------------------\n'
         for feature_comparer in self.full_feature_comparer:
             display += f'\t{feature_comparer}\n'
@@ -84,21 +84,22 @@ class Pattern:
 
     def __str__(self):
         display = '> ------------------------------\n'
-        display += f'> Numer of patterns: {len(self.full_feature_comparer)}:\n'
-        display += f'> Target value: {self.target_value}\n' \
-                   f'> P_value: {self.p_value}\n' \
-                   f'> expected_freq: {self.expected_freq}\n' \
-                   f'> Chi2 statistic: {self.chi2_statistic}\n' \
-                   f'> Chi2 critical_value: {self.chi2_critical_value}\n' \
-                   f'> number_target: {self.number_target}\n' \
-                   f'> number_all: {self.number_all}\n' \
-                   f'> target_accuracy: {self.target_accuracy}\n' \
-                   f'> complexity: {self.complexity}\n'
-        display += '> ------------------------------\n'
-        for comparer in self.full_feature_comparer:
-            display += f'\t\t --- {comparer.get_query()}\n'
-        display += '> ------------------------------\n'
-        display += f'\tQuery: {self.get_full_rule()}\n'
+        # display += f'> Numer of patterns: {len(self.full_feature_comparer)}:\n'
+        display += f' ** Target value: {self.target_value}'
+        # display +=f'> P_value: {self.p_value}\n'
+        # display +=f'> expected_freq: {self.expected_freq}\n'
+        # display +=f'> Chi2 statistic: {self.chi2_statistic}\n'
+        # display +=f'> Chi2 critical_value: {self.chi2_critical_value}\n'
+        display += f' ** number_target: {self.number_target}'
+        display += f' ** number_all: {self.number_all}'
+        # display += f'> target_accuracy: {self.target_accuracy}\n'
+        # display += f'> complexity: {self.complexity}\n'
+        # display += '> ------------------------------\n'
+        # for comparer in self.full_feature_comparer:
+        #    display += f'\t\t --- {comparer.get_query()}\n'
+        # display += '> ------------------------------\n'
+        display += '\n'
+        display += f'\t Query: {self.get_full_rule()}\n'
         display += '> ------------------------------\n'
         return display
 
@@ -118,4 +119,3 @@ def concatenate_query(previous_full_query, rule_query):
     if previous_full_query != '':
         return f'{previous_full_query}  &  {rule_query}'
     return f'{rule_query}'
-
