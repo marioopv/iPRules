@@ -39,7 +39,7 @@ def generate_results(ensemble,
     ensemble.fit(X_train, y_train)
     y_pred_test_ensemble = ensemble.predict(X_test)
 
-    data_file_name = f'../../data/Test_{filename}.txt'
+    data_file_name = f'../../data/Results_{filename}.csv'
     f = open(data_file_name, "a")
     file_header = "chi_square_percent_point_function, scale_feature_coefficient, min_accuracy_coefficient, " \
                   "min_number_class_per_node, sorting_method, dataset_size, dataset_categorizable, number_of_rules, " \

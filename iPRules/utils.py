@@ -66,7 +66,9 @@ class Pattern:
         self.number_all = number_all
         self.target_accuracy = target_accuracy
         self.feature_names = feature_names
-        self.complexity = len(full_feature_comparer)
+
+    def get_complexity(self):
+        return len(self.full_feature_comparer)
 
     def get_full_rule(self):
         full_query = ''
@@ -84,21 +86,13 @@ class Pattern:
 
     def __str__(self):
         display = '> ------------------------------\n'
-        # display += f'> Numer of patterns: {len(self.full_feature_comparer)}:\n'
         display += f' ** Target value: {self.target_value}'
-        # display +=f'> P_value: {self.p_value}\n'
-        # display +=f'> expected_freq: {self.expected_freq}\n'
-        # display +=f'> Chi2 statistic: {self.chi2_statistic}\n'
-        # display +=f'> Chi2 critical_value: {self.chi2_critical_value}\n'
-        display += f' ** number_target: {self.number_target}'
-        display += f' ** number_all: {self.number_all}'
-        # display += f'> target_accuracy: {self.target_accuracy}\n'
-        # display += f'> complexity: {self.complexity}\n'
-        # display += '> ------------------------------\n'
-        # for comparer in self.full_feature_comparer:
-        #    display += f'\t\t --- {comparer.get_query()}\n'
-        # display += '> ------------------------------\n'
-        display += '\n'
+        display += f' ** Target: {self.number_target}'
+        display += f' ** Total: {self.number_all}'
+        display += f' ** Accuracy: {self.target_accuracy}'
+        display += f' ** Complexity: {self.get_complexity()}'
+        display += f' ** Chi2 critical_value: {self.chi2_critical_value}'
+        display += f' ** P_value: {self.p_value}\n'
         display += f'\t Query: {self.get_full_rule()}\n'
         display += '> ------------------------------\n'
         return display

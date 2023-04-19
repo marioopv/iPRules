@@ -1,5 +1,6 @@
 import time
-from copy import copy
+import copy
+
 
 import numpy as np
 from scipy.stats import chi2_contingency, chi2
@@ -144,10 +145,8 @@ class iPRules(ClassifierMixin):
 
                 if chi2_statistic > chi2_critical_value:
                     # Set rules and last value to NONE
-                    current_full_feature_comparer = copy(node.full_feature_comparer)
-                    last_value = copy(current_full_feature_comparer[-1])
-                    last_value.value = None
-                    current_full_feature_comparer[-1] = last_value
+                    current_full_feature_comparer = copy.deepcopy(node.full_feature_comparer)
+                    current_full_feature_comparer[-1].value = None
 
                     # Si se encuentra una regla que puede tener un patrón, se incluye.
                     pattern = Pattern(target_value=None,
@@ -178,19 +177,19 @@ class iPRules(ClassifierMixin):
         while index < len(self.pattern_list_valid_nodes):
             for distinct_value in [self.target_true, self.target_false]:
                 # UPDATE VALUES
-                new_rule = copy(self.pattern_list_valid_nodes[index])
-                last_value = copy(new_rule.full_feature_comparer[-1])
-                last_value.value = distinct_value
-                new_rule.full_feature_comparer[-1] = last_value
+                new_rule = copy.deepcopy(self.pattern_list_valid_nodes[index])
+                new_rule.full_feature_comparer[-1].value = distinct_value
 
                 number_negatives = self.count_query_negatives(test_data, new_rule.get_full_rule())
                 number_positives = self.count_query_positives(test_data, new_rule.get_full_rule())
                 number_positives_and_negatives = number_positives + number_negatives
+
                 # If this rule has existing cases in total in the training set, is included.
                 if number_positives_and_negatives > 0:
                     new_rule.number_all = number_positives_and_negatives
                     # Checks if the combinations show a rule for negative/positives
                     proportion_positives = number_positives / number_positives_and_negatives
+
                     # do not include rules with 0.5 prob
                     if proportion_positives == 0.5:
                         continue
@@ -318,10 +317,6 @@ class iPRules(ClassifierMixin):
         if self.display_logs:
             print(f"Elapsed time to compute the binary_tree_generator: {elapsed_time:.3f} seconds")
 
-        # TODO: REMOVE
-        print(len(self.nodes_dict))
-        #for key, node in self.nodes_dict.items():
-        #    print(node)
 
         # Lista de nodos válidos
         start_time = time.time()
@@ -330,11 +325,6 @@ class iPRules(ClassifierMixin):
         if self.display_logs:
             print(
                 f"Elapsed time to compute the obtain_pattern_list_of_valid_nodes_with_pvalue: {elapsed_time:.3f} seconds")
-
-        # TODO: REMOVE
-        print(len(self.pattern_list_valid_nodes))
-        #for pattern in self.pattern_list_valid_nodes:
-        #    print(pattern)
 
         # Categoriza patrones
         start_time = time.time()
@@ -350,7 +340,7 @@ class iPRules(ClassifierMixin):
             case "target_accuracy":
                 return sorted(self.rules_, key=lambda r: r.target_accuracy, reverse=True)
             case "complexity":
-                return sorted(self.rules_, key=lambda r: r.complexity, reverse=True)
+                return sorted(self.rules_, key=lambda r: r.get_complexity(), reverse=True)
             case "p_value":
                 return sorted(self.rules_, key=lambda r: r.p_value)
             case "chi2_statistic":
@@ -399,7 +389,7 @@ class iPRules(ClassifierMixin):
 
     def description(self):
         display = '> ++++++++++++++++++++++++++++\n'
-        display += f'> iPRules (not ordered) --  Number of Rules {len(self.rules_)}:\n'
+        display += f'> iPRules --  Number of Rules {len(self.rules_)}:\n'
         display += '> ++++++++++++++++++++++++++++\n'
         return display
 
@@ -407,6 +397,6 @@ class iPRules(ClassifierMixin):
         display = self.description()
         sorted_rules = self.sorting()
         for num in range(len(sorted_rules)):
-            display += f'Rule {num}:\n {sorted_rules[num]}'
+            display += f'{sorted_rules[num]}'
 
         return display
