@@ -75,6 +75,7 @@ class Pattern:
         return full_query
 
     def Predict(self, data_array):
+        # TODO: PARALLEL
         for comparer in self.full_feature_comparer:
             index = np.where(self.feature_names == comparer.feature_name)[0][0]
             if float(comparer.value) != float(data_array[index]):

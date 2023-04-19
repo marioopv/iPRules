@@ -1,3 +1,4 @@
+import time
 from copy import copy
 
 import numpy as np
@@ -11,9 +12,9 @@ from iPRules.utils import FeatureComparer, Node, Pattern, concatenate_query, pre
 class iPRules(ClassifierMixin):
 
     def __init__(self,
-                 base_ensemble,
                  feature_names,
                  target_value_name="target",
+                 display_logs=False,
                  display_features=False,
                  target_true=1,
                  target_false=0,
@@ -22,14 +23,12 @@ class iPRules(ClassifierMixin):
                  min_accuracy_coefficient=0.9,
                  min_number_class_per_node=3
                  ):
-        self.tree_ = None
         self.rules_ = []
         self.feature_importance_list = None
         self.most_important_features_ = None
-        #self.nodes = []
         self.nodes_dict = {}
         self.nodes_dict_ids = []
-        self.base_ensemble_ = base_ensemble
+        self.pattern_list_valid_nodes = []
         self.feature_names = feature_names
         self.target_value_name = target_value_name
         self.target_true = target_true
@@ -41,6 +40,7 @@ class iPRules(ClassifierMixin):
         self.min_accuracy_coefficient = min_accuracy_coefficient
         self.min_number_class_per_node = min_number_class_per_node
         self.display_features = display_features
+        self.display_logs = display_logs
 
     def get_node(self, ID):
         return self.nodes_dict[ID]
@@ -68,7 +68,7 @@ class iPRules(ClassifierMixin):
 
         return chi2_results.statistic, chi2_results.pvalue, chi2_results.dof, chi2_results.expected_freq, chi2_critical_value
 
-    def get_top_important_features_list(self):
+    def get_top_important_features_list(self, feature_importances):
         """
         Obtiene las características más importantes en orden descendente
         :return:
@@ -77,6 +77,13 @@ class iPRules(ClassifierMixin):
         :param feature_importances: Valor de importancia asociado a cada característica en el modelo entrenado.
         :return: Ordered feature list
         """
+
+        if self.display_logs:
+            print("->Extract feature importance list")
+
+        # Feature Importance list
+        self.feature_importance_list = feature_importances
+
         # Indices de las características mas significativas ordenadas
         index = np.argsort(self.feature_importance_list)[::-1].tolist()
         max_coefficient = self.feature_importance_list[index[0]]  # Valor de la característica más importante
@@ -85,10 +92,17 @@ class iPRules(ClassifierMixin):
         if self.display_features:
             self.plot_features(X_train_minmax)
 
-        return [self.feature_names[x] for x in index if X_train_minmax[x] >= self.scale_feature_coefficient]
-
         # coefficient_threshold = max_coefficient * (1 - self.scale_feature_coefficient)
-        # return [self.feature_names[x] for x in index if self.feature_importance_list[x] >= coefficient_threshold]
+        # self.most_important_features_ = [self.feature_names[x] for x in index if self.feature_importance_list[x] >= coefficient_threshold]
+
+        self.most_important_features_ = [self.feature_names[x] for x in index if
+                                         X_train_minmax[x] >= self.scale_feature_coefficient]
+
+        if self.display_logs:
+            print(f'\t Original features {len(self.feature_importance_list)}')
+            print(f'\t Selected features {len(self.most_important_features_)}')
+            print(
+                f'\t Percentage of selected rules: {100 * len(self.most_important_features_) / len(self.feature_importance_list)} %')
 
     def nomalized_features(self):
         return preprocessing.MinMaxScaler().fit_transform(self.feature_importance_list.reshape(-1, 1))
@@ -108,10 +122,12 @@ class iPRules(ClassifierMixin):
         Construct the list of rules based on the chi square of their sons
         @return: pattern_list_valid_nodes
         """
-        pattern_list_valid_nodes = []
+
+        if self.display_logs:
+            print("->Generate obtained patterns tree")
+
         visited_nodes = []  # Lista auxiliar para guardar los IDs de los nodos que ya han sido visitados.
         # Visita todos los nodos, y de aquellos que no sean el nodo principal y que tengan hijos, obtiene el chi-square de los hijos de ese nodo.
-        #for node in self.nodes:
         for key, node in self.nodes_dict.items():
             if node.PARENT_ID is None:
                 continue
@@ -123,7 +139,8 @@ class iPRules(ClassifierMixin):
             children = parent_node.children
             # En el caso de que ese nodo no sea un nodo hoja
             if len(children) > 0:
-                chi2_statistic, p_value, degrees_of_freedom, expected_freq, chi2_critical_value = self.chi2_values(children)
+                chi2_statistic, p_value, degrees_of_freedom, expected_freq, chi2_critical_value = self.chi2_values(
+                    children)
 
                 if chi2_statistic > chi2_critical_value:
                     # Set rules and last value to NONE
@@ -139,27 +156,29 @@ class iPRules(ClassifierMixin):
                                       chi2_statistic=chi2_statistic,
                                       chi2_critical_value=chi2_critical_value,
                                       expected_freq=expected_freq,
-                                      number_target=None, # define later
+                                      number_target=None,  # define later
                                       feature_names=self.feature_names,
                                       number_all=None,
                                       target_accuracy=None)
-                    pattern_list_valid_nodes.append(pattern)
-        return pattern_list_valid_nodes
+                    self.pattern_list_valid_nodes.append(pattern)
 
-    def categorize_patterns(self, test_data, pattern_list_valid_nodes):
+    def categorize_patterns(self, test_data):
         """
         PSEUDO FIT
         :param test_data:
         :param pattern_list_valid_nodes:
         :return: list of rules
         """
+        if self.display_logs:
+            print("->Categorize patterns")
+
         # Checks all combinations found and checks for both 0 and 1 in the last pathology to study both cases.
         index = 0
         # TODO: PARALLEL
-        while index < len(pattern_list_valid_nodes):
+        while index < len(self.pattern_list_valid_nodes):
             for distinct_value in [self.target_true, self.target_false]:
                 # UPDATE VALUES
-                new_rule = copy(pattern_list_valid_nodes[index])
+                new_rule = copy(self.pattern_list_valid_nodes[index])
                 last_value = copy(new_rule.full_feature_comparer[-1])
                 last_value.value = distinct_value
                 new_rule.full_feature_comparer[-1] = last_value
@@ -279,37 +298,40 @@ class iPRules(ClassifierMixin):
                     self.binary_tree_generator(dataset, previous_full_query=full_rule_query, node_value=node_value,
                                                feature_index=new_feature_index, parent_node=current_node)
 
-    def fit(self, pandas_dataset):
+    def fit(self, pandas_dataset, feature_importances):
         """
         Get list of top features and generate rules
         :param pandas_dataset:
         :return:
+        @param feature_importances:
         """
-        #TODO: CHECK TIMES
+        # TODO: CHECK TIMES and improve comments
 
-        print("->Check Ensemble Model is fitted")
-        check_is_fitted(self.base_ensemble_)
-
-        print("->Extract feature importance list")
-        # Feature Importance list
-        self.feature_importance_list = self.base_ensemble_.feature_importances_
         # List of top % important features in the model are obtained. This % regulated by coefficient between [0,1].
-        self.most_important_features_ = self.get_top_important_features_list()
+        self.get_top_important_features_list(feature_importances)
 
-        print(f'\t Original features {len(self.feature_importance_list)}')
-        print(f'\t Selected features {len(self.most_important_features_)}')
-        print(
-            f'\t Percentage of selected rules: {100 * len(self.most_important_features_) / len(self.feature_importance_list)} %')
-
-        print("->Generate new tree based on list")
         # Genera el árbol binario y obtiene las combinaciones que indican que hay un patrón:
+        if self.display_logs:
+            print("->Generate new tree based on list")
+        start_time = time.time()
         self.binary_tree_generator(dataset=pandas_dataset)
+        elapsed_time = time.time() - start_time
+        if self.display_logs:
+            print(f"Elapsed time to compute the binary_tree_generator: {elapsed_time:.3f} seconds")
 
-        print("->Generate obtained patterns tree")
-        pattern_list_valid_nodes = self.obtain_pattern_list_of_valid_nodes_with_pvalue()
+        # Lista de nodos válidos
+        start_time = time.time()
+        self.obtain_pattern_list_of_valid_nodes_with_pvalue()
+        elapsed_time = time.time() - start_time
+        if self.display_logs:
+            print(f"Elapsed time to compute the obtain_pattern_list_of_valid_nodes_with_pvalue: {elapsed_time:.3f} seconds")
 
-        print("->Categorize patterns")
-        self.categorize_patterns(pandas_dataset, pattern_list_valid_nodes)
+        # Categoriza patrones
+        start_time = time.time()
+        self.categorize_patterns(pandas_dataset)
+        elapsed_time = time.time() - start_time
+        if self.display_logs:
+            print(f"Elapsed time to compute the categorize_patterns: {elapsed_time:.3f} seconds")
 
         return self
 
