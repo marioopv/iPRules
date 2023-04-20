@@ -7,21 +7,19 @@ from notebooks.IPRules.test_utils import one_hot_encode_dataframe, generate_resu
 
 # Load Dataset
 
-# Mushrooms
-filename = 'mushrooms'
-target_true = 'p'
-target_false = 'e'
+filename = 'dataset3'
 test_size = 0.2
 
-data_file_name = f'../../data/{filename}.csv'
+
+data_file_name = f'../../../data/{filename}.csv'
 pandas_dataset = pd.read_csv(data_file_name)
 pandas_dataset = pandas_dataset.replace('?', 'unknown')
 pandas_dataset = pandas_dataset.dropna()
 pandas_dataset.columns = [sub.replace('%', '') for sub in pandas_dataset.columns]
 target_value_name = pandas_dataset.columns[-1]
-pandas_dataset[target_value_name] = pandas_dataset[target_value_name].map({target_false: 0, target_true: 1})
-pandas_dataset.columns = [sub.replace('-', '_').replace(' ', '').replace('class', 'target_value') for sub in
-                          pandas_dataset.columns]
+
+
+pandas_dataset.columns = [sub.replace('-', '_').replace(' ', '').replace(target_value_name, 'target_value') for sub in pandas_dataset.columns]
 target_value_name = pandas_dataset.columns[-1]
 feature_names = pandas_dataset.columns[0:-1]
 
