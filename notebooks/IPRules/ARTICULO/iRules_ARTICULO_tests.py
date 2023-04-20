@@ -24,7 +24,7 @@ dataset = Bunch(
 # Different values
 scale_feature_coefficient = [0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5]
 min_accuracy_coefficient = [0.66, 0.8, 0.85, 0.9, 0.95]
-min_number_class_per_node = [2, 3, 5, 7, 9]
+min_number_class_per_node = [2, 3, 5, 7, 9, 11]
 chi_square_percent_point_function = [0.95, 0.97, 0.99, 0.995]
 sorting_method = ['target_accuracy', 'complexity', 'chi2_statistic']
 
