@@ -8,3 +8,11 @@ data/mushrooms_combinations_positives.csv
 data/Test_mushrooms.txt
 iPRules/__pycache__/utils.cpython-310.pyc
 iPRules/__pycache__/iPRules.cpython-310.pyc
+Results/Results_dataset3_LAST.csv
+Results/Results_dataset3.csv
+Results/Results_clean_dataset.csv
+Results/Results_dataset3.csv
+Results/Results_mushrooms.csv
+notebooks/IPRules/__pycache__/test_utils.cpython-310.pyc
+iPRules/__pycache__/utils.cpython-310.pyc
+iPRules/__pycache__/iPRules.cpython-310.pyc

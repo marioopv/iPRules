@@ -1,13 +1,24 @@
 import time
 import copy
 
-
 import numpy as np
 from scipy.stats import chi2_contingency, chi2
 from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.utils.validation import check_is_fitted
 from sklearn import preprocessing
-from iPRules.utils import FeatureComparer, Node, Pattern, concatenate_query, predict_unique_with_query
+from iPRules.utils import FeatureComparer, Node, Pattern, concatenate_query, predict_unique_with_query, divide_chunks, \
+    concatenate_query_comparer, chunk_query
+
+
+def plot_features(X_train_minmax):
+    import matplotlib.pyplot as plt
+    # data to be plotted
+    # plotting
+    plt.title("Features MinMaxScaler")
+    plt.xlabel("X MinMaxScaler")
+    plt.ylabel("Features")
+    plt.plot(X_train_minmax, color="green")
+    plt.show()
 
 
 class iPRules(ClassifierMixin):
@@ -34,8 +45,8 @@ class iPRules(ClassifierMixin):
         self.target_value_name = target_value_name
         self.target_true = target_true
         self.target_false = target_false
-        self.target_class_positive = FeatureComparer(target_value_name, '==', self.target_false)
-        self.target_class_negative = FeatureComparer(target_value_name, '==', self.target_true)
+        self.target_class_positive = FeatureComparer(target_value_name, '==', self.target_true)
+        self.target_class_negative = FeatureComparer(target_value_name, '==', self.target_false)
         self.chi_square_percent_point_function = chi_square_percent_point_function
         self.scale_feature_coefficient = scale_feature_coefficient
         self.min_accuracy_coefficient = min_accuracy_coefficient
@@ -91,7 +102,7 @@ class iPRules(ClassifierMixin):
 
         X_train_minmax = self.nomalized_features()
         if self.display_features:
-            self.plot_features(X_train_minmax)
+            plot_features(X_train_minmax)
 
         # coefficient_threshold = max_coefficient * (1 - self.scale_feature_coefficient)
         # self.most_important_features_ = [self.feature_names[x] for x in index if self.feature_importance_list[x] >= coefficient_threshold]
@@ -108,22 +119,13 @@ class iPRules(ClassifierMixin):
     def nomalized_features(self):
         return preprocessing.MinMaxScaler().fit_transform(self.feature_importance_list.reshape(-1, 1))
 
-    def plot_features(self, X_train_minmax):
-        import matplotlib.pyplot as plt
-        # data to be plotted
-        # plotting
-        plt.title("Features MinMaxScaler")
-        plt.xlabel("X MinMaxScaler")
-        plt.ylabel("Features")
-        plt.plot(X_train_minmax, color="green")
-        plt.show()
-
     def obtain_pattern_list_of_valid_nodes_with_pvalue(self):
         """
         Construct the list of rules based on the chi square of their sons
         @return: pattern_list_valid_nodes
         """
 
+        start_time = time.time()
         if self.display_logs:
             print("->Generate obtained patterns tree")
 
@@ -140,8 +142,7 @@ class iPRules(ClassifierMixin):
             children = parent_node.children
             # En el caso de que ese nodo no sea un nodo hoja
             if len(children) > 0:
-                chi2_statistic, p_value, degrees_of_freedom, expected_freq, chi2_critical_value = self.chi2_values(
-                    children)
+                chi2_statistic, p_value, degrees_of_freedom, expected_freq, chi2_critical_value = self.chi2_values(children)
 
                 if chi2_statistic > chi2_critical_value:
                     # Set rules and last value to NONE
@@ -161,6 +162,11 @@ class iPRules(ClassifierMixin):
                                       target_accuracy=None)
                     self.pattern_list_valid_nodes.append(pattern)
 
+        elapsed_time = time.time() - start_time
+        if self.display_logs:
+            print(
+                f"Elapsed time to compute the obtain_pattern_list_of_valid_nodes_with_pvalue: {elapsed_time:.3f} seconds")
+
     def categorize_patterns(self, test_data):
         """
         PSEUDO FIT
@@ -168,6 +174,8 @@ class iPRules(ClassifierMixin):
         :param pattern_list_valid_nodes:
         :return: list of rules
         """
+
+        start_time = time.time()
         if self.display_logs:
             print("->Categorize patterns")
 
@@ -180,8 +188,12 @@ class iPRules(ClassifierMixin):
                 new_rule = copy.deepcopy(self.pattern_list_valid_nodes[index])
                 new_rule.full_feature_comparer[-1].value = distinct_value
 
-                number_negatives = self.count_query_negatives(test_data, new_rule.get_full_rule())
-                number_positives = self.count_query_positives(test_data, new_rule.get_full_rule())
+                number_negatives = self.count_query_negatives_query(test_data, new_rule.get_full_rule())
+                number_positives = self.count_query_positives_query(test_data, new_rule.get_full_rule())
+
+                #number_negatives = self.count_query_negatives(test_data, new_rule.full_feature_comparer)
+                #number_positives = self.count_query_positives(test_data, new_rule.full_feature_comparer)
+
                 number_positives_and_negatives = number_positives + number_negatives
 
                 # If this rule has existing cases in total in the training set, is included.
@@ -210,25 +222,49 @@ class iPRules(ClassifierMixin):
                             continue
                     self.rules_.append(new_rule)
             index += 1
+
+        elapsed_time = time.time() - start_time
+        if self.display_logs:
+            print(f"Elapsed time to compute the categorize_patterns: {elapsed_time:.3f} seconds")
+
         return self.rules_
 
-    def predict_unique_with_query_positives(self, pandas_dataset, full_query):
-        new_query = concatenate_query(full_query, self.target_class_positive.get_query())
-        return predict_unique_with_query(pandas_dataset, new_query)
+    def predict_unique_with_query_positives(self, pandas_dataset, feature_comparer):
+        dataset_filtered = pandas_dataset
+        for comparer in feature_comparer:
+            dataset_filtered = comparer.unitary_loc(dataset_filtered)
+        dataset_filtered = self.target_class_positive.unitary_loc(dataset_filtered)
+        return dataset_filtered
 
-    def predict_unique_with_query_negatives(self, pandas_dataset, full_query):
-        new_query = concatenate_query(full_query, self.target_class_negative.get_query())
-        return predict_unique_with_query(pandas_dataset, new_query)
+    def predict_unique_with_query_positives_query(self, pandas_dataset, full_feature_comparer):
+        dataset_filtered = pandas_dataset
+        return chunk_query(dataset_filtered, concatenate_query(full_feature_comparer, self.target_class_positive.get_query()))
 
-    def count_query_positives(self, pandas_dataset, full_query):
-        return len(self.predict_unique_with_query_positives(pandas_dataset, full_query))
+    def predict_unique_with_query_negatives(self, pandas_dataset, feature_comparer):
+        dataset_filtered = pandas_dataset
+        for comparer in feature_comparer:
+            dataset_filtered = comparer.unitary_loc(dataset_filtered)
+        dataset_filtered = self.target_class_negative.unitary_loc(dataset_filtered)
+        return dataset_filtered
 
-    def count_query_negatives(self, pandas_dataset, full_query):
-        return len(self.predict_unique_with_query_negatives(pandas_dataset, full_query))
+    def predict_unique_with_query_negatives_query(self, pandas_dataset, full_feature_comparer):
+        dataset_filtered = pandas_dataset
+        return chunk_query(dataset_filtered, concatenate_query(full_feature_comparer, self.target_class_negative.get_query()))
+
+    def count_query_positives(self, pandas_dataset, feature_comparer):
+        return len(self.predict_unique_with_query_positives(pandas_dataset, feature_comparer))
+
+    def count_query_negatives(self, pandas_dataset, feature_comparer):
+        return len(self.predict_unique_with_query_negatives(pandas_dataset, feature_comparer))
+
+    def count_query_positives_query(self, pandas_dataset, full_query):
+        return len(self.predict_unique_with_query_positives_query(pandas_dataset, full_query))
+
+    def count_query_negatives_query(self, pandas_dataset, full_query):
+        return len(self.predict_unique_with_query_negatives_query(pandas_dataset, full_query))
 
     def binary_tree_generator(self,
                               dataset,
-                              previous_full_query='',
                               node_value=0,
                               feature_index=0,
                               parent_node=None):
@@ -236,24 +272,21 @@ class iPRules(ClassifierMixin):
         Función recursiva encargada de generar el árbol de nodos con sus respectivas queries y obtener en cada nodo la query y el número de fallecimientos y supervivencias de cada uno.
 
         :param dataset: Pandas DataFrame. Dataset con las filas para obtener el número de fallecimientos y defunciones usando cada query.
-        :param previous_full_query: Variable auxiliar en la que se irá anexando las características junto con sus valores para generar las queries.
         :param node_value: Representa el valor de la característica en ese nodo en concreto.
         :param feature_index: índice auxiliar de la lista de características
         :param parent_node: node of the parent of current node
         :return:
         """
-        if feature_index >= len(self.most_important_features_):
-            # No hay más niveles
-            return
+        current_feature_name = self.most_important_features_[feature_index]
 
-        feature_comparer = FeatureComparer(self.most_important_features_[feature_index], '==', str(node_value))
+        feature_comparer = FeatureComparer(current_feature_name, '==', node_value)
         # Caso base para el que se considera como nodo padre de todos.
         if parent_node is None:
             # Create Node
             current_node = Node(ID=0,
                                 PARENT_ID=None,
-                                number_positives=self.count_query_negatives(dataset, ''),
-                                number_negatives=self.count_query_positives(dataset, ''),
+                                number_positives=self.count_query_negatives_query(dataset, ''),
+                                number_negatives=self.count_query_negatives_query(dataset, ''),
                                 full_feature_comparer=[])
             # Incluye el nodo en la lista
             self.nodes_dict[current_node.ID] = current_node
@@ -261,16 +294,20 @@ class iPRules(ClassifierMixin):
 
             # Una vez creado el padre, se accede a la primera característica, que representaría el primer nivel.
             # Por cada posible valor que pueda tomar esa característica, se crea un hijo nodo de manera recursiva
-            for node_value in dataset[self.most_important_features_[0]].unique():
+            for node_value in dataset[current_feature_name].unique():
                 self.binary_tree_generator(dataset, node_value=node_value, parent_node=current_node)
 
         # Caso en el que el padre ya ha sido creado
         else:
-            full_rule_query = concatenate_query(previous_full_query, feature_comparer.get_query())
-            number_negatives = self.count_query_negatives(dataset, full_rule_query)
-            number_positives = self.count_query_positives(dataset, full_rule_query)
-            node_values_total = number_negatives + number_positives
+            full_rule_query = concatenate_query(parent_node.get_full_query(), feature_comparer.get_query())
+            number_negatives = self.count_query_negatives_query(dataset, full_rule_query)
+            number_positives = self.count_query_positives_query(dataset, full_rule_query)
 
+            full_comparer = parent_node.full_feature_comparer + [feature_comparer]
+            #number_negatives = self.count_query_negatives(dataset, full_comparer)
+            #number_positives = self.count_query_positives(dataset, full_comparer)
+
+            node_values_total = number_negatives + number_positives
             # Si el nodo se considera que no tiene los casos suficientes,
             # es descartado y el árbol no continúa en esa rama.
             if node_values_total >= self.min_number_class_per_node:
@@ -281,7 +318,7 @@ class iPRules(ClassifierMixin):
                                     PARENT_ID=parent_node.ID,
                                     number_negatives=number_negatives,
                                     number_positives=number_positives,
-                                    full_feature_comparer=parent_node.full_feature_comparer + [feature_comparer]
+                                    full_feature_comparer=full_comparer
                                     )
 
                 # Incluye el nodo en la lista
@@ -291,47 +328,75 @@ class iPRules(ClassifierMixin):
                 # La ID del nodo es incluida en la lista de hijos del padre.
                 self.nodes_dict[parent_node.ID].children.append(node_dict_ID)
 
-                # Por cada posible valor que pueda tomar esa característica, se crea un hijo nodo de manera recursiva
-                for node_value in dataset[self.most_important_features_[feature_index]].unique():
-                    new_feature_index = feature_index + 1
-                    self.binary_tree_generator(dataset, previous_full_query=full_rule_query, node_value=node_value,
-                                               feature_index=new_feature_index, parent_node=current_node)
+                #new_dataset = dataset.loc[:, dataset.columns != current_feature_name]
+                new_feature_index = feature_index + 1
+                if new_feature_index >= len(self.most_important_features_):
+                    # No hay más niveles
+                    return
+                # Por cada posible valor que pueda tomar esa nueva característica, se crea un hijo nodo de manera recursiva
+                for node_value in dataset[self.most_important_features_[new_feature_index]].unique():
+                    self.binary_tree_generator(dataset, node_value=node_value,
+                                               feature_index=new_feature_index,
+                                               parent_node=current_node)
 
-    def fit(self, pandas_dataset, feature_importances):
-        """
-        Get list of top features and generate rules
-        :param pandas_dataset:
-        :return:
-        @param feature_importances:
-        """
-
+    def generate_nodes(self, pandas_dataset, feature_importances):
         # List of top % important features in the model are obtained. This % regulated by coefficient between [0,1].
         self.get_top_important_features_list(feature_importances)
 
+        # Generate Tree
+        return self.generate_tree(pandas_dataset=pandas_dataset), self.most_important_features_
+
+    def generate_tree(self, pandas_dataset):
         # Genera el árbol binario y obtiene las combinaciones que indican que hay un patrón:
+
+        if self.most_important_features_ is None:
+            return False
+
+        minimal_dataset = copy.deepcopy(pandas_dataset[self.define_minimal_columns()])
+
         if self.display_logs:
             print("->Generate new tree based on list")
         start_time = time.time()
-        self.binary_tree_generator(dataset=pandas_dataset)
+        self.binary_tree_generator(dataset=minimal_dataset)
         elapsed_time = time.time() - start_time
         if self.display_logs:
             print(f"Elapsed time to compute the binary_tree_generator: {elapsed_time:.3f} seconds")
 
+        return self.nodes_dict
+
+    def define_minimal_columns(self):
+        return self.most_important_features_ + [self.target_value_name]
+
+    def fit(self, pandas_dataset, feature_importances, node_dict=None, most_important_features=None):
+        """
+        Get list of top features and generate rules
+        :param pandas_dataset:
+        :return:
+        @type pandas_dataset: pandas dataset
+        @type node_dict: object
+        @param node_dict:
+        @param feature_importances:
+        """
+
+        if node_dict is not None:
+            self.nodes_dict = node_dict
+
+        if most_important_features is not None:
+            self.most_important_features_ = most_important_features
+
+        # if dict is null calculate it
+        if not self.nodes_dict:
+            self.generate_nodes(pandas_dataset, feature_importances)
+
+        if not self.most_important_features_:
+            self.get_top_important_features_list(feature_importances)
 
         # Lista de nodos válidos
-        start_time = time.time()
         self.obtain_pattern_list_of_valid_nodes_with_pvalue()
-        elapsed_time = time.time() - start_time
-        if self.display_logs:
-            print(
-                f"Elapsed time to compute the obtain_pattern_list_of_valid_nodes_with_pvalue: {elapsed_time:.3f} seconds")
 
+        minimal_dataset = copy.deepcopy(pandas_dataset[self.define_minimal_columns()])
         # Categoriza patrones
-        start_time = time.time()
-        self.categorize_patterns(pandas_dataset)
-        elapsed_time = time.time() - start_time
-        if self.display_logs:
-            print(f"Elapsed time to compute the categorize_patterns: {elapsed_time:.3f} seconds")
+        self.categorize_patterns(minimal_dataset)
 
         return self
 
