@@ -3,9 +3,10 @@ import copy
 import numpy as np
 import pandas as pd
 from imodels import RuleFitClassifier
+from rulecosi import RuleCOSIClassifier
 from sklearn import metrics
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import make_scorer, accuracy_score
+from sklearn.metrics import make_scorer, accuracy_score, f1_score
 from sklearn.model_selection import GridSearchCV, RepeatedKFold
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
@@ -241,7 +242,13 @@ def generate_scores(filtered_y_test, filtered_y_pred_test_ensemble):
 def generate_battery_test(filename,X, y, dataset, target_value_name, n_splits, chi_square_percent_point_function,
                           scale_feature_coefficient, min_accuracy_coefficient, min_number_class_per_node,
                           sorting_method, criterion):
-    cobertura_list, RuleFit_accuracy_list, RuleFit_f1_score_list, RuleFit_precision_score_list, RuleFit_recall_list, RuleFit_roc_auc_score_list, ensemble_accuracy_list, ensemble_f1_score_list, ensemble_precision_score_list, ensemble_recall_list, ensemble_roc_auc_score_list, rules_accuracy_list, rules_f1_score_list, rules_precision_score_list, rules_recall_list, rules_roc_auc_score_list, tree_accuracy_list, tree_f1_score_list, tree_precision_score_list, tree_recall_list, tree_roc_auc_score_list = generate_battery_test(
+    cobertura_list,\
+        RuleFit_accuracy_list, RuleFit_f1_score_list, RuleFit_precision_score_list, RuleFit_recall_list, RuleFit_roc_auc_score_list,\
+        ensemble_accuracy_list, ensemble_f1_score_list, ensemble_precision_score_list, ensemble_recall_list, ensemble_roc_auc_score_list,\
+        rules_accuracy_list, rules_f1_score_list, rules_precision_score_list, rules_recall_list, rules_roc_auc_score_list, tree_accuracy_list,\
+        tree_f1_score_list, tree_precision_score_list, tree_recall_list, tree_roc_auc_score_list,\
+        rulecosi_accuracy_list, rulecosi_f1_score_list, rulecosi_precision_score_list, rulecosi_recall_list, rulecosi_roc_auc_score_list, tree_accuracy_list\
+        = kfold_test(
         X, y, dataset, target_value_name, n_splits, chi_square_percent_point_function,
         scale_feature_coefficient,
         min_accuracy_coefficient, min_number_class_per_node, sorting_method, criterion)
@@ -249,13 +256,9 @@ def generate_battery_test(filename,X, y, dataset, target_value_name, n_splits, c
     f_score = f'F-score,{filename},{cobertura_list.mean()}±{cobertura_list.std()}'
     f_score += f',{tree_f1_score_list.mean()}±{tree_f1_score_list.std()},{ensemble_f1_score_list.mean()}±{ensemble_f1_score_list.std()}'
     f_score += f',{RuleFit_f1_score_list.mean()}±{RuleFit_f1_score_list.std()}'
-    f_score += f',NaN±NaN,'
+    f_score += f',{rulecosi_f1_score_list.mean()}±{rulecosi_f1_score_list.std()}'
     f_score += f'{rules_f1_score_list.mean()}±{rules_f1_score_list.std()}'
 
-    return kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_accuracy_coefficient,
-                     min_number_class_per_node, n_splits, scale_feature_coefficient, sorting_method,
-                     target_value_name,
-                     y)
 
 
 def kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_accuracy_coefficient,
@@ -281,10 +284,15 @@ def kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_acc
     RuleFit_precision_score_list = []
     RuleFit_recall_list = []
     RuleFit_roc_auc_score_list = []
+    rulecosi_accuracy_list = []
+    rulecosi_f1_score_list = []
+    rulecosi_precision_score_list = []
+    rulecosi_recall_list = []
+    rulecosi_roc_auc_score_list = []
 
     repeated_kfold = RepeatedKFold(n_splits=n_splits, n_repeats=3)
     for train, test in repeated_kfold.split(X, y):
-        custom_scorer = make_scorer(accuracy_score, greater_is_better=True)
+        custom_scorer = make_scorer(f1_score, greater_is_better=True)
         param_grid_tree = {
             'max_depth': [2, 3, 4, 5, 6],  # number of minimum samples required at a leaf node.
         }
@@ -312,7 +320,6 @@ def kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_acc
         # RuleFit
         ruleFit = RuleFitClassifier()
 
-        # TODO: RULECOSI
 
         X_train = X.loc[train].to_numpy()
         y_train = y.loc[train].to_numpy()
@@ -333,18 +340,30 @@ def kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_acc
         # Fit model
         clf_rf.fit(X_train, y_train)
         ensemble = clf_rf.best_estimator_
+
+
+
+        # RULECOSI
+        rulecosi = RuleCOSIClassifier(
+            base_ensemble=ensemble,
+            conf_threshold=0.9,
+            cov_threshold=0.0,
+            column_names=dataset.feature_names)
+
+
+        # Fit model
         rules.fit(train_pandas_dataset, ensemble.feature_importances_)
         clf_tree.fit(X_train, y_train)
         tree = clf_tree.best_estimator_
         ruleFit.fit(X_train, y_train, feature_names=dataset.feature_names)
-        # clf_rulefit.fit(X_train, y_train, feature_names=dataset.feature_names)
-        # ruleFit = clf_rulefit.best_estimator_
+        rulecosi.fit(X_train, y_train)
 
         # Predict
         y_pred_test_ensemble = ensemble.predict(X_test)
         y_pred_test_rules = rules.predict(X_test, sorting_method=sorting_method)
         y_pred_test_tree = tree.predict(X_test)
         y_pred_test_RuleFit = ruleFit.predict(X_test)
+        y_pred_test_rulecosi = rulecosi.predict(X_test)
 
         # DATASET CATEGORIZABLES
         np_array_rules = np.array(y_pred_test_rules)
@@ -396,6 +415,15 @@ def kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_acc
         rules_recall_list.append(rules_recall)
         rules_roc_auc_score_list.append(rules_roc_auc_score)
 
+        rulecosi_accuracy, rulecosi_f1_score, rulecosi_precision_score, rulecosi_recall, rulecosi_roc_auc_score = generate_scores(
+            filtered_y_test, y_pred_test_rulecosi)
+
+        rulecosi_accuracy_list.append(rulecosi_accuracy)
+        rulecosi_f1_score_list.append(rulecosi_f1_score)
+        rulecosi_precision_score_list.append(rulecosi_precision_score)
+        rulecosi_recall_list.append(rulecosi_recall)
+        rulecosi_roc_auc_score_list.append(rulecosi_roc_auc_score)
+
     return np.array(RuleFit_accuracy_list), np.array(RuleFit_f1_score_list), np.array(
         RuleFit_precision_score_list), np.array(RuleFit_recall_list), np.array(RuleFit_roc_auc_score_list), \
         np.array(cobertura_list), \
@@ -404,4 +432,7 @@ def kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_acc
         np.array(rules_accuracy_list), np.array(rules_f1_score_list), np.array(rules_precision_score_list), np.array(
         rules_recall_list), np.array(rules_roc_auc_score_list), \
         np.array(tree_accuracy_list), np.array(tree_f1_score_list), np.array(tree_precision_score_list), np.array(
-        tree_recall_list), np.array(tree_roc_auc_score_list)
+        tree_recall_list), np.array(tree_roc_auc_score_list), \
+        np.array(rulecosi_accuracy_list), np.array(rulecosi_f1_score_list), np.array(
+        rulecosi_precision_score_list), np.array(
+        rulecosi_recall_list), np.array(rulecosi_roc_auc_score_list)
