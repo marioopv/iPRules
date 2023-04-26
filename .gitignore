@@ -1,6 +1,6 @@
-/notebooks/RuleCosi/rulecosi/
-/notebooks/RuleCosi/data/
-/notebooks/RuleFit/data/
+/notebooks/OTHERS/RuleCosi/rulecosi/
+/notebooks/OTHERS/RuleCosi/data/
+/notebooks/OTHERS/RuleFit/data/
 /.idea
 .DS_Store
 data/mushrooms_combinations_negatives.csv

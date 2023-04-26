@@ -14,10 +14,12 @@ def plot_features(X_train_minmax):
     import matplotlib.pyplot as plt
     # data to be plotted
     # plotting
+
     plt.title("Features MinMaxScaler")
     plt.xlabel("X MinMaxScaler")
     plt.ylabel("Features")
     plt.plot(X_train_minmax, color="green")
+    #plt.yticks([0, 0.001, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
     plt.show()
 
 
@@ -437,7 +439,6 @@ class iPRules(ClassifierMixin):
             @param sorting_method:
             @return:
         """
-
         predictions = []
         for x in X:
             categorize_rule = None
