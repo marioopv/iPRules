@@ -5,7 +5,7 @@ from notebooks.IPRules.test_utils import generate_battery_test, one_hot_encode_d
 
 # Load Dataset
 filename = 'criotherapy'
-list_of_continuous_columns = []
+list_of_continuous_columns = ["age","Time","Area"]
 number_of_divisions = 5
 
 data_file_name = f'../../../../data/{filename}.csv'

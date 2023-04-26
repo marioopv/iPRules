@@ -6,7 +6,7 @@ from imodels import RuleFitClassifier
 from sklearn import metrics
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import make_scorer, accuracy_score
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, RepeatedKFold
 from sklearn.model_selection import KFold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
@@ -16,21 +16,32 @@ from iPRules.iPRules import iPRules
 
 
 def continuous_to_discrete_column(dataset, list_of_continuous_columns, number_of_divisions=10):
+    labels = []
+
+    if number_of_divisions == 10:
+        labels = ['L_VeryLow', 'L_Low', 'L_Medium', 'L_High', 'L_VeryHigh',
+                  'R_VeryLow', 'R_Low', 'R_Medium', 'R_High', 'R_VeryHigh']
+    if number_of_divisions == 5:
+        labels = ['VeryLow', 'Low', 'Medium', 'High', 'VeryHigh']
+
     for column_name in list_of_continuous_columns:
         dataset[column_name] = pd.cut(
             dataset[column_name]
             , number_of_divisions
-            , labels=['L_VeryLow', 'L_Low', 'L_Medium', 'L_High', 'L_VeryHigh'
-                      , 'R_VeryLow', 'R_Low', 'R_Medium', 'R_High', 'R_VeryHigh']
+            , labels=labels
         )
 
     return dataset
 
 
+def clean_names(name_list):
+    return [sub.replace('?', '_').replace('.', '_').replace('-', '_').replace(' ', '') for sub in name_list]
+
+
 def one_hot_encode_dataframe(data, feature_names):
     enc = OneHotEncoder(sparse_output=False)
     encoded_array = enc.fit_transform(data.loc[:, feature_names])
-    encoded_feature_names = enc.get_feature_names_out()
+    encoded_feature_names = clean_names(enc.get_feature_names_out())
     df_encoded = pd.DataFrame(encoded_array, columns=encoded_feature_names)
     encoded_pandas_dataset = pd.concat([df_encoded, data], axis=1)
     encoded_pandas_dataset.drop(labels=feature_names, axis=1, inplace=True)
@@ -218,13 +229,37 @@ def generate_scores(filtered_y_test, filtered_y_pred_test_ensemble):
     f1_score = metrics.f1_score(filtered_y_test, filtered_y_pred_test_ensemble)
     precision_score = metrics.precision_score(filtered_y_test, filtered_y_pred_test_ensemble)
     recall = metrics.recall_score(filtered_y_test, filtered_y_pred_test_ensemble)
-    roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_ensemble)
+
+    try:
+        roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_ensemble)
+    except ValueError:
+        roc_auc_score = 0.0
+
     return accuracy, f1_score, precision_score, recall, roc_auc_score
 
 
-def generate_battery_test(X, y, dataset, target_value_name, n_splits, chi_square_percent_point_function,
+def generate_battery_test(filename,X, y, dataset, target_value_name, n_splits, chi_square_percent_point_function,
                           scale_feature_coefficient, min_accuracy_coefficient, min_number_class_per_node,
                           sorting_method, criterion):
+    cobertura_list, RuleFit_accuracy_list, RuleFit_f1_score_list, RuleFit_precision_score_list, RuleFit_recall_list, RuleFit_roc_auc_score_list, ensemble_accuracy_list, ensemble_f1_score_list, ensemble_precision_score_list, ensemble_recall_list, ensemble_roc_auc_score_list, rules_accuracy_list, rules_f1_score_list, rules_precision_score_list, rules_recall_list, rules_roc_auc_score_list, tree_accuracy_list, tree_f1_score_list, tree_precision_score_list, tree_recall_list, tree_roc_auc_score_list = generate_battery_test(
+        X, y, dataset, target_value_name, n_splits, chi_square_percent_point_function,
+        scale_feature_coefficient,
+        min_accuracy_coefficient, min_number_class_per_node, sorting_method, criterion)
+
+    f_score = f'F-score,{filename},{cobertura_list.mean()}±{cobertura_list.std()}'
+    f_score += f',{tree_f1_score_list.mean()}±{tree_f1_score_list.std()},{ensemble_f1_score_list.mean()}±{ensemble_f1_score_list.std()}'
+    f_score += f',{RuleFit_f1_score_list.mean()}±{RuleFit_f1_score_list.std()}'
+    f_score += f',NaN±NaN,'
+    f_score += f'{rules_f1_score_list.mean()}±{rules_f1_score_list.std()}'
+
+    return kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_accuracy_coefficient,
+                     min_number_class_per_node, n_splits, scale_feature_coefficient, sorting_method,
+                     target_value_name,
+                     y)
+
+
+def kfold_test(X, chi_square_percent_point_function, criterion, dataset, min_accuracy_coefficient,
+               min_number_class_per_node, n_splits, scale_feature_coefficient, sorting_method, target_value_name, y):
     cobertura_list = []
     rules_accuracy_list = []
     rules_f1_score_list = []
@@ -246,7 +281,9 @@ def generate_battery_test(X, y, dataset, target_value_name, n_splits, chi_square
     RuleFit_precision_score_list = []
     RuleFit_recall_list = []
     RuleFit_roc_auc_score_list = []
-    for train, test in KFold(n_splits=n_splits).split(X, y):
+
+    repeated_kfold = RepeatedKFold(n_splits=n_splits, n_repeats=3)
+    for train, test in repeated_kfold.split(X, y):
         custom_scorer = make_scorer(accuracy_score, greater_is_better=True)
         param_grid_tree = {
             'max_depth': [2, 3, 4, 5, 6],  # number of minimum samples required at a leaf node.
@@ -318,6 +355,8 @@ def generate_battery_test(X, y, dataset, target_value_name, n_splits, chi_square
         filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
         filtered_y_pred_test_rules = np.array(y_pred_test_rules)[filter_indices].astype('int64')
 
+        if len(filter_indices) == 0:
+            continue
         # SCORERS
         cobertura = len(filtered_y_pred_test_rules) / len(y_test)
         cobertura_list.append(cobertura)
@@ -356,29 +395,13 @@ def generate_battery_test(X, y, dataset, target_value_name, n_splits, chi_square
         rules_precision_score_list.append(rules_precision_score)
         rules_recall_list.append(rules_recall)
         rules_roc_auc_score_list.append(rules_roc_auc_score)
-    np_cobertura_list = np.array(cobertura_list)
-    np_RuleFit_accuracy_list = np.array(RuleFit_accuracy_list)
-    np_RuleFit_f1_score_list = np.array(RuleFit_f1_score_list)
-    np_RuleFit_precision_score_list = np.array(RuleFit_precision_score_list)
-    np_RuleFit_recall_list = np.array(RuleFit_recall_list)
-    np_RuleFit_roc_auc_score_list = np.array(RuleFit_roc_auc_score_list)
-    np_ensemble_accuracy_list = np.array(ensemble_accuracy_list)
-    np_ensemble_f1_score_list = np.array(ensemble_f1_score_list)
-    np_ensemble_precision_score_list = np.array(ensemble_precision_score_list)
-    np_ensemble_recall_list = np.array(ensemble_recall_list)
-    np_ensemble_roc_auc_score_list = np.array(ensemble_roc_auc_score_list)
-    np_rules_accuracy_list = np.array(rules_accuracy_list)
-    np_rules_f1_score_list = np.array(rules_f1_score_list)
-    np_rules_precision_score_list = np.array(rules_precision_score_list)
-    np_rules_recall_list = np.array(rules_recall_list)
-    np_rules_roc_auc_score_list = np.array(rules_roc_auc_score_list)
-    np_tree_accuracy_list = np.array(tree_accuracy_list)
-    np_tree_f1_score_list = np.array(tree_f1_score_list)
-    np_tree_precision_score_list = np.array(tree_precision_score_list)
-    np_tree_recall_list = np.array(tree_recall_list)
-    np_tree_roc_auc_score_list = np.array(tree_roc_auc_score_list)
-    return np_cobertura_list, \
-        np_RuleFit_accuracy_list, np_RuleFit_f1_score_list, np_RuleFit_precision_score_list, np_RuleFit_recall_list, np_RuleFit_roc_auc_score_list, \
-        np_ensemble_accuracy_list, np_ensemble_f1_score_list, np_ensemble_precision_score_list, np_ensemble_recall_list, np_ensemble_roc_auc_score_list, \
-        np_rules_accuracy_list, np_rules_f1_score_list, np_rules_precision_score_list, np_rules_recall_list, np_rules_roc_auc_score_list, \
-        np_tree_accuracy_list, np_tree_f1_score_list, np_tree_precision_score_list, np_tree_recall_list, np_tree_roc_auc_score_list
+
+    return np.array(RuleFit_accuracy_list), np.array(RuleFit_f1_score_list), np.array(
+        RuleFit_precision_score_list), np.array(RuleFit_recall_list), np.array(RuleFit_roc_auc_score_list), \
+        np.array(cobertura_list), \
+        np.array(ensemble_accuracy_list), np.array(ensemble_f1_score_list), np.array(
+        ensemble_precision_score_list), np.array(ensemble_recall_list), np.array(ensemble_roc_auc_score_list), \
+        np.array(rules_accuracy_list), np.array(rules_f1_score_list), np.array(rules_precision_score_list), np.array(
+        rules_recall_list), np.array(rules_roc_auc_score_list), \
+        np.array(tree_accuracy_list), np.array(tree_f1_score_list), np.array(tree_precision_score_list), np.array(
+        tree_recall_list), np.array(tree_roc_auc_score_list)

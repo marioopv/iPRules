@@ -1,24 +1,29 @@
 import pandas as pd
 from sklearn.utils import Bunch
 
-from notebooks.IPRules.test_utils import generate_battery_test, one_hot_encode_dataframe
+from notebooks.IPRules.test_utils import generate_battery_test, one_hot_encode_dataframe, continuous_to_discrete_column
 
 # Load Dataset
-filename = 'wisconsin'
+filename = 'mammographic_masses'
+list_of_continuous_columns = []
+number_of_divisions = 5
 
 data_file_name = f'../../../../data/{filename}.csv'
 results_file_name = f'../../../../Results/Results_{filename}.csv'
 
 pandas_dataset = pd.read_csv(data_file_name)
-pandas_dataset = pandas_dataset.replace('?', 'unknown')
+pandas_dataset = pandas_dataset.replace('?', "np.Nan")
 pandas_dataset = pandas_dataset.dropna()
 pandas_dataset.columns = [sub.replace('%', '') for sub in pandas_dataset.columns]
 target_value_name = pandas_dataset.columns[-1]
+
+
 pandas_dataset.columns = [sub.replace('-', '_').replace(' ', '').replace('class', 'target_value') for sub in
                           pandas_dataset.columns]
 target_value_name = pandas_dataset.columns[-1]
 feature_names = pandas_dataset.columns[0:-1]
 
+pandas_dataset = continuous_to_discrete_column(pandas_dataset, list_of_continuous_columns, number_of_divisions)
 encoded_pandas_dataset, encoded_feature_names = one_hot_encode_dataframe(pandas_dataset, feature_names)
 
 X = encoded_pandas_dataset[encoded_feature_names]
@@ -57,19 +62,21 @@ print("np_ensemble_accuracy_list %0.5f ± %0.5f" % (np_ensemble_accuracy_list.me
 print("np_rules_accuracy_list %0.5f ± %0.5f" % (np_rules_accuracy_list.mean(), np_rules_accuracy_list.std()))
 print("np_tree_accuracy_list %0.5f ± %0.5f" % (np_tree_accuracy_list.mean(), np_tree_accuracy_list.std()))
 
-
 print("F-SCORE")
 print("np_RuleFit_f1_score_list %0.5f ± %0.5f" % (np_RuleFit_f1_score_list.mean(), np_RuleFit_f1_score_list.std()))
 print("np_ensemble_f1_score_list %0.5f ± %0.5f" % (np_ensemble_f1_score_list.mean(), np_ensemble_f1_score_list.std()))
 print("np_rules_f1_score_list %0.5f ± %0.5f" % (np_rules_f1_score_list.mean(), np_rules_f1_score_list.std()))
 print("np_tree_f1_score_list %0.5f ± %0.5f" % (np_tree_f1_score_list.mean(), np_tree_f1_score_list.std()))
 
-
 print("PRECISION")
-print("np_RuleFit_precision_score_list %0.5f ± %0.5f" % (np_RuleFit_precision_score_list.mean(), np_RuleFit_precision_score_list.std()))
-print("np_ensemble_precision_score_list %0.5f ± %0.5f" % (np_ensemble_precision_score_list.mean(), np_ensemble_precision_score_list.std()))
-print("np_rules_precision_score_list %0.5f ± %0.5f" % (np_rules_precision_score_list.mean(), np_rules_precision_score_list.std()))
-print("np_tree_precision_score_list %0.5f ± %0.5f" % (np_tree_precision_score_list.mean(), np_tree_precision_score_list.std()))
+print("np_RuleFit_precision_score_list %0.5f ± %0.5f" % (
+np_RuleFit_precision_score_list.mean(), np_RuleFit_precision_score_list.std()))
+print("np_ensemble_precision_score_list %0.5f ± %0.5f" % (
+np_ensemble_precision_score_list.mean(), np_ensemble_precision_score_list.std()))
+print("np_rules_precision_score_list %0.5f ± %0.5f" % (
+np_rules_precision_score_list.mean(), np_rules_precision_score_list.std()))
+print("np_tree_precision_score_list %0.5f ± %0.5f" % (
+np_tree_precision_score_list.mean(), np_tree_precision_score_list.std()))
 
 print("--------------------")
 print("--------------------")
