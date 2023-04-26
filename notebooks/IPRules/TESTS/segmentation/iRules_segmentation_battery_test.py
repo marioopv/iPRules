@@ -49,12 +49,8 @@ scale_feature_coefficient = 0.01
 min_accuracy_coefficient = 0.9
 min_number_class_per_node = 3
 sorting_method = "target_accuracy"
-criterion = "entropy"
 
-generate_battery_test(filename,
-                      X, y, encoded_dataset, target_value_name,
-                      n_splits,
-                      chi_square_percent_point_function, scale_feature_coefficient,
-                      min_accuracy_coefficient, min_number_class_per_node,
-                      sorting_method, criterion)
+f_score = generate_battery_test(filename, results_file_name,X, y, encoded_dataset, target_value_name, n_splits, chi_square_percent_point_function,
+                          scale_feature_coefficient, min_accuracy_coefficient, min_number_class_per_node,
+                          sorting_method)
 
