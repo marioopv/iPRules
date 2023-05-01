@@ -7,8 +7,7 @@ from rulecosi import RuleCOSIClassifier
 from sklearn import metrics
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import make_scorer, accuracy_score, f1_score
-from sklearn.model_selection import GridSearchCV, RepeatedKFold
-from sklearn.model_selection import KFold
+from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
@@ -239,73 +238,79 @@ def generate_scores(filtered_y_test, filtered_y_pred_test_ensemble):
     return accuracy, f1_score, precision_score, recall, roc_auc_score
 
 
-def generate_battery_test(filename, results_file_name,X, y, dataset, target_value_name, n_splits, chi_square_percent_point_function,
+def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_splits, n_repeats,
+                          chi_square_percent_point_function,
                           scale_feature_coefficient, min_accuracy_coefficient, min_number_class_per_node,
                           sorting_method):
-
-    f = open(results_file_name, "w")
-    file_header = f'{filename}, scorer, cobertura, DT, RF, RF+RFIT, RF+RC, RF+Rules'
-
-    print(file_header)
-    f.write(file_header)
-
-
-    cobertura_list,\
-        RuleFit_accuracy_list, RuleFit_f1_score_list, RuleFit_precision_score_list, RuleFit_recall_list, RuleFit_roc_auc_score_list,\
-        ensemble_accuracy_list, ensemble_f1_score_list, ensemble_precision_score_list, ensemble_recall_list, ensemble_roc_auc_score_list,\
-        rules_accuracy_list, rules_f1_score_list, rules_precision_score_list, rules_recall_list, rules_roc_auc_score_list, tree_accuracy_list,\
-        tree_f1_score_list, tree_precision_score_list, tree_recall_list, tree_roc_auc_score_list,\
-        rulecosi_accuracy_list, rulecosi_f1_score_list, rulecosi_precision_score_list, rulecosi_recall_list, rulecosi_roc_auc_score_list, tree_accuracy_list\
+    cobertura_list, \
+        RuleFit_accuracy_list, RuleFit_f1_score_list, RuleFit_precision_score_list, RuleFit_recall_list, RuleFit_roc_auc_score_list, \
+        ensemble_accuracy_list, ensemble_f1_score_list, ensemble_precision_score_list, ensemble_recall_list, ensemble_roc_auc_score_list, \
+        rules_accuracy_list, rules_f1_score_list, rules_precision_score_list, rules_recall_list, rules_roc_auc_score_list, \
+        tree_accuracy_list, tree_f1_score_list, tree_precision_score_list, tree_recall_list, tree_roc_auc_score_list, \
+        rulecosi_accuracy_list, rulecosi_f1_score_list, rulecosi_precision_score_list, rulecosi_recall_list, rulecosi_roc_auc_score_list, \
+        rulefit_num_rules_list, rules_num_rules_list, rulecosi_num_rules_list \
         = kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coefficient,
-               min_number_class_per_node, n_splits, scale_feature_coefficient, sorting_method, target_value_name, y)
+                     min_number_class_per_node, n_splits, n_repeats, scale_feature_coefficient, sorting_method,
+                     target_value_name, y)
 
-    f_score = f'{filename},F1-score,{cobertura_list.mean()}±{cobertura_list.std()}'
-    f_score += f',{tree_f1_score_list.mean()}±{tree_f1_score_list.std()}'
-    f_score += f',{ensemble_f1_score_list.mean()}±{ensemble_f1_score_list.std()}'
-    f_score += f',{RuleFit_f1_score_list.mean()}±{RuleFit_f1_score_list.std()}'
-    f_score += f',{rulecosi_f1_score_list.mean()}±{rulecosi_f1_score_list.std()}'
-    f_score += f'{rules_f1_score_list.mean()}±{rules_f1_score_list.std()}'
+    f_score = f'{filename},F1-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    f_score += f',{round(tree_f1_score_list.mean() * 100, 2)}±{round(tree_f1_score_list.std() * 100, 2)}'
+    f_score += f',{round(ensemble_f1_score_list.mean() * 100, 2)}±{round(ensemble_f1_score_list.std() * 100, 2)}'
+    f_score += f',{round(RuleFit_f1_score_list.mean() * 100, 2)}±{round(RuleFit_f1_score_list.std() * 100, 2)}'
+    f_score += f',{round(rulecosi_f1_score_list.mean() * 100, 2)}±{round(rulecosi_f1_score_list.std() * 100, 2)}'
+    f_score += f',{round(rules_f1_score_list.mean() * 100, 2)}±{round(rules_f1_score_list.std() * 100, 2)}'
+    f_score += f',{round(rulefit_num_rules_list.mean() * 100, 2)}±{round(rulefit_num_rules_list.std() * 100, 2)}'
+    f_score += f',{round(rules_num_rules_list.mean() * 100, 2)}±{round(rules_num_rules_list.std() * 100, 2)}'
+    f_score += f',{round(rulecosi_num_rules_list.mean() * 100, 2)}±{round(rulecosi_num_rules_list.std() * 100, 2)}\n'
 
     print(f_score)
     f.write(f_score)
 
-    accuracy_score = f'{filename},Accuracy-score,{cobertura_list.mean()}±{cobertura_list.std()}'
-    accuracy_score += f',{tree_accuracy_list.mean()}±{tree_accuracy_list.std()}'
-    accuracy_score += f',{ensemble_accuracy_list.mean()}±{ensemble_accuracy_list.std()}'
-    accuracy_score += f',{RuleFit_accuracy_list.mean()}±{RuleFit_accuracy_list.std()}'
-    accuracy_score += f',{rulecosi_accuracy_list.mean()}±{rulecosi_accuracy_list.std()}'
-    accuracy_score += f'{rules_accuracy_list.mean()}±{rules_accuracy_list.std()}'
+    accuracy_score = f'{filename},Accuracy-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    accuracy_score += f',{round(tree_accuracy_list.mean() * 100, 2)}±{round(tree_accuracy_list.std() * 100, 2)}'
+    accuracy_score += f',{round(ensemble_accuracy_list.mean() * 100, 2)}±{round(ensemble_accuracy_list.std() * 100, 2)}'
+    accuracy_score += f',{round(RuleFit_accuracy_list.mean() * 100, 2)}±{round(RuleFit_accuracy_list.std() * 100, 2)}'
+    accuracy_score += f',{round(rulecosi_accuracy_list.mean() * 100, 2)}±{round(rulecosi_accuracy_list.std() * 100, 2)}'
+    accuracy_score += f',{round(rules_accuracy_list.mean() * 100, 2)}±{round(rules_accuracy_list.std() * 100, 2)}'
+    accuracy_score += f',{round(rulefit_num_rules_list.mean() * 100, 2)}±{round(rulefit_num_rules_list.std() * 100, 2)}'
+    accuracy_score += f',{round(rules_num_rules_list.mean() * 100, 2)}±{round(rules_num_rules_list.std() * 100, 2)}'
+    accuracy_score += f',{round(rulecosi_num_rules_list.mean() * 100, 2)}±{round(rulecosi_num_rules_list.std() * 100, 2)}\n'
 
     print(accuracy_score)
     f.write(accuracy_score)
 
-    precision_score = f'{filename},Precision-Score,{cobertura_list.mean()}±{cobertura_list.std()}'
-    precision_score += f',{tree_precision_score_list.mean()}±{tree_precision_score_list.std()}'
-    precision_score += f',{ensemble_precision_score_list.mean()}±{ensemble_precision_score_list.std()}'
-    precision_score += f',{RuleFit_precision_score_list.mean()}±{RuleFit_precision_score_list.std()}'
-    precision_score += f',{rulecosi_precision_score_list.mean()}±{rulecosi_precision_score_list.std()}'
-    precision_score += f'{rules_precision_score_list.mean()}±{rules_precision_score_list.std()}'
+    precision_score = f'{filename},Precision-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    precision_score += f',{round(tree_precision_score_list.mean() * 100, 2)}±{round(tree_precision_score_list.std() * 100, 2)}'
+    precision_score += f',{round(ensemble_precision_score_list.mean() * 100, 2)}±{round(ensemble_precision_score_list.std() * 100, 2)}'
+    precision_score += f',{round(RuleFit_precision_score_list.mean() * 100, 2)}±{round(RuleFit_precision_score_list.std() * 100, 2)}'
+    precision_score += f',{round(rulecosi_precision_score_list.mean() * 100, 2)}±{round(rulecosi_precision_score_list.std() * 100, 2)}'
+    precision_score += f',{round(rules_precision_score_list.mean() * 100, 2)}±{round(rules_precision_score_list.std() * 100, 2)}'
+    precision_score += f',{round(rulefit_num_rules_list.mean() * 100, 2)}±{round(rulefit_num_rules_list.std() * 100, 2)}'
+    precision_score += f',{round(rules_num_rules_list.mean() * 100, 2)}±{round(rules_num_rules_list.std() * 100, 2)}'
+    precision_score += f',{round(rulecosi_num_rules_list.mean() * 100, 2)}±{round(rulecosi_num_rules_list.std() * 100, 2)}\n'
 
     print(precision_score)
     f.write(precision_score)
 
-    recall = f'{filename},Recall-Score,{cobertura_list.mean()}±{cobertura_list.std()}'
-    recall += f',{tree_recall_list.mean()}±{tree_recall_list.std()}'
-    recall += f',{ensemble_recall_list.mean()}±{ensemble_recall_list.std()}'
-    recall += f',{RuleFit_recall_list.mean()}±{RuleFit_recall_list.std()}'
-    recall += f',{rulecosi_recall_list.mean()}±{rulecosi_recall_list.std()}'
-    recall += f'{rules_recall_list.mean()}±{rules_recall_list.std()}'
+    recall = f'{filename},Recall-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    recall += f',{round(tree_recall_list.mean() * 100, 2)}±{round(tree_recall_list.std() * 100, 2)}'
+    recall += f',{round(ensemble_recall_list.mean() * 100, 2)}±{round(ensemble_recall_list.std() * 100, 2)}'
+    recall += f',{round(RuleFit_recall_list.mean() * 100, 2)}±{round(RuleFit_recall_list.std() * 100, 2)}'
+    recall += f',{round(rulecosi_recall_list.mean() * 100, 2)}±{round(rulecosi_recall_list.std() * 100, 2)}'
+    recall += f',{round(rules_recall_list.mean() * 100, 2)}±{round(rules_recall_list.std() * 100, 2)}'
+    recall += f',{round(rulefit_num_rules_list.mean() * 100, 2)}±{round(rulefit_num_rules_list.std() * 100, 2)}'
+    recall += f',{round(rules_num_rules_list.mean() * 100, 2)}±{round(rules_num_rules_list.std() * 100, 2)}'
+    recall += f',{round(rulecosi_num_rules_list.mean() * 100, 2)}±{round(rulecosi_num_rules_list.std() * 100, 2)}\n'
 
     print(recall)
     f.write(recall)
-    f.close()
 
-    return f_score
-
+    return f_score, accuracy_score, precision_score, recall
 
 
 def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coefficient,
-               min_number_class_per_node, n_splits, scale_feature_coefficient, sorting_method, target_value_name, y):
+               min_number_class_per_node, n_splits, n_repeats, scale_feature_coefficient, sorting_method,
+               target_value_name, y):
     cobertura_list = []
     rules_accuracy_list = []
     rules_f1_score_list = []
@@ -332,8 +337,12 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
     rulecosi_precision_score_list = []
     rulecosi_recall_list = []
     rulecosi_roc_auc_score_list = []
+    # number of rules
+    rulefit_num_rules_list = []
+    rules_num_rules_list = []
+    rulecosi_num_rules_list = []
 
-    repeated_kfold = RepeatedKFold(n_splits=n_splits, n_repeats=3)
+    repeated_kfold = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats)
     for train, test in repeated_kfold.split(X, y):
         custom_scorer = make_scorer(f1_score, greater_is_better=True)
         param_grid_tree = {
@@ -360,8 +369,6 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
             cv=5,  # Specified number of folds in the Cross-Validation(K-Fold).
             scoring=custom_scorer)
 
-
-
         X_train = X.loc[train].to_numpy()
         y_train = y.loc[train].to_numpy()
         X_test = X.loc[test].to_numpy()
@@ -382,9 +389,8 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         clf_rf.fit(X_train, y_train)
         ensemble = clf_rf.best_estimator_
 
-
         # RuleFit
-        ruleFit = RuleFitClassifier()#(tree_generator=ensemble)# alpha= [0.1, 1, 10, 100] include_linear= [True, False]
+        ruleFit = RuleFitClassifier()  # (tree_generator=ensemble)# alpha= [0.1, 1, 10, 100] include_linear= [True, False]
 
         # RULECOSI
         rulecosi = RuleCOSIClassifier(
@@ -392,7 +398,6 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
             conf_threshold=0.9,
             cov_threshold=0.0,
             column_names=dataset.feature_names)
-
 
         # Fit model
         rules.fit(train_pandas_dataset, ensemble.feature_importances_)
@@ -416,6 +421,7 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         filtered_y_pred_test_tree = np.array(y_pred_test_tree)[filter_indices].astype('int64')
         filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
         filtered_y_pred_test_rules = np.array(y_pred_test_rules)[filter_indices].astype('int64')
+        filtered_y_pred_test_rulecosi = np.array(y_pred_test_rulecosi)[filter_indices].astype('int64')
 
         if len(filter_indices) == 0:
             continue
@@ -459,7 +465,7 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rules_roc_auc_score_list.append(rules_roc_auc_score)
 
         rulecosi_accuracy, rulecosi_f1_score, rulecosi_precision_score, rulecosi_recall, rulecosi_roc_auc_score = generate_scores(
-            filtered_y_test, y_pred_test_rulecosi)
+            filtered_y_test, filtered_y_pred_test_rulecosi)
 
         rulecosi_accuracy_list.append(rulecosi_accuracy)
         rulecosi_f1_score_list.append(rulecosi_f1_score)
@@ -467,9 +473,13 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rulecosi_recall_list.append(rulecosi_recall)
         rulecosi_roc_auc_score_list.append(rulecosi_roc_auc_score)
 
-    return np.array(RuleFit_accuracy_list), np.array(RuleFit_f1_score_list), np.array(
+        rulefit_num_rules_list.append(len(ruleFit.rules_))
+        rules_num_rules_list.append(len(rules.rules_))
+        rulecosi_num_rules_list.append(len(rulecosi.simplified_ruleset_.rules))
+
+    return np.array(cobertura_list), \
+        np.array(RuleFit_accuracy_list), np.array(RuleFit_f1_score_list), np.array(
         RuleFit_precision_score_list), np.array(RuleFit_recall_list), np.array(RuleFit_roc_auc_score_list), \
-        np.array(cobertura_list), \
         np.array(ensemble_accuracy_list), np.array(ensemble_f1_score_list), np.array(
         ensemble_precision_score_list), np.array(ensemble_recall_list), np.array(ensemble_roc_auc_score_list), \
         np.array(rules_accuracy_list), np.array(rules_f1_score_list), np.array(rules_precision_score_list), np.array(
@@ -477,5 +487,5 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         np.array(tree_accuracy_list), np.array(tree_f1_score_list), np.array(tree_precision_score_list), np.array(
         tree_recall_list), np.array(tree_roc_auc_score_list), \
         np.array(rulecosi_accuracy_list), np.array(rulecosi_f1_score_list), np.array(
-        rulecosi_precision_score_list), np.array(
-        rulecosi_recall_list), np.array(rulecosi_roc_auc_score_list)
+        rulecosi_precision_score_list), np.array(rulecosi_recall_list), np.array(rulecosi_roc_auc_score_list), \
+        np.array(rulefit_num_rules_list), np.array(rules_num_rules_list), np.array(rulecosi_num_rules_list)
