@@ -12,7 +12,7 @@ sorting_method = "target_accuracy"
 
 path = f'../..'
 
-results_file_name = f'{path}/Results/battery_testTEST.csv'
+results_file_name = f'{path}/Results/battery_test_all.csv'
 
 
 f = open(results_file_name, "w")

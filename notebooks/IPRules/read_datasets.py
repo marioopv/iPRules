@@ -14,17 +14,11 @@ dataset_names = [
     "wisconsin",
     "salud-covid",
     "SPECT",
-    "connect-4",
     "ionosphere",
     "kr-vs-kp",
     "divorce",
+    "connect-4",
     "credit"
-]
-dataset_names = [
-    "SPECT",
-    "ionosphere",
-    "kr-vs-kp",
-    "connect-4"
 ]
 
 
