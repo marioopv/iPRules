@@ -11,6 +11,7 @@ from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
+import dask.dataframe as dd
 
 from iPRules.iPRules import iPRules
 
@@ -131,7 +132,7 @@ def generate_results_from_criterion(X_test, X_train, chi_square_percent_point_fu
 
                     # Fit model
                     calculated = new_rules.fit(
-                        pandas_dataset=train_pandas_dataset,
+                        dataset=train_pandas_dataset,
                         feature_importances=ensemble.feature_importances_,
                         node_dict=copy.deepcopy(dict_nodes),
                         most_important_features=copy.deepcopy(most_important_features)
@@ -374,6 +375,11 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         X_test = X.loc[test].to_numpy()
         y_test = y.loc[test].to_numpy()
 
+        X_train_int = X_train.astype(int)
+        y_train_int = y_train.astype(int)
+        X_test_int = X_test.astype(int)
+        y_test_int = y_test.astype(int)
+
         train_pandas_dataset = pd.DataFrame(data=np.c_[X_train, y_train],
                                             columns=list(dataset['feature_names']) + [target_value_name])
 
@@ -403,20 +409,22 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rules.fit(train_pandas_dataset, ensemble.feature_importances_)
         clf_tree.fit(X_train, y_train)
         tree = clf_tree.best_estimator_
-        ruleFit.fit(X_train, y_train, feature_names=dataset.feature_names)
+
+        ruleFit.fit(X_train_int, y_train_int, feature_names=dataset.feature_names)
         rulecosi.fit(X_train, y_train)
 
         # Predict
         y_pred_test_ensemble = ensemble.predict(X_test)
         y_pred_test_rules = rules.predict(X_test, sorting_method=sorting_method)
         y_pred_test_tree = tree.predict(X_test)
-        y_pred_test_RuleFit = ruleFit.predict(X_test)
+        y_pred_test_RuleFit = ruleFit.predict(X_test_int)
         y_pred_test_rulecosi = rulecosi.predict(X_test)
 
         # DATASET CATEGORIZABLES
         np_array_rules = np.array(y_pred_test_rules)
         filter_indices = np.where(np_array_rules != None)[0]
         filtered_y_test = np.array(y_test)[filter_indices].astype('int64')
+        filtered_y_test_int = np.array(y_test_int)[filter_indices].astype('int64')
         filtered_y_pred_test_ensemble = np.array(y_pred_test_ensemble)[filter_indices].astype('int64')
         filtered_y_pred_test_tree = np.array(y_pred_test_tree)[filter_indices].astype('int64')
         filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
@@ -448,7 +456,7 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         tree_roc_auc_score_list.append(tree_roc_auc_score)
 
         RuleFit_accuracy, RuleFit_f1_score, RuleFit_precision_score, RuleFit_recall, RuleFit_roc_auc_score = generate_scores(
-            filtered_y_test, filtered_y_pred_test_RuleFit)
+            filtered_y_test_int, filtered_y_pred_test_RuleFit)
         RuleFit_accuracy_list.append(RuleFit_accuracy)
         RuleFit_f1_score_list.append(RuleFit_f1_score)
         RuleFit_precision_score_list.append(RuleFit_precision_score)

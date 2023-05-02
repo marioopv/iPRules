@@ -120,9 +120,9 @@ def chunk_query(dataset_filtered, new_query):
         dataset_filtered = predict_unique_with_query(dataset_filtered, group_query)
     return dataset_filtered
 
-def predict_unique_with_query(pandas_dataset, full_query):
-    #return pandas_dataset.query(full_query, engine='python')  #slower otherwise limit of 32 variables
-    return pandas_dataset.query(full_query)
+def predict_unique_with_query(dataset, full_query):
+    return dataset.query(full_query, engine='python')  #slower otherwise limit of 32 variables
+    #return dataset.query(full_query)
 
 
 def concatenate_query(previous_full_query, rule_query):

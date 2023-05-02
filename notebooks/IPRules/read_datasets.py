@@ -23,11 +23,11 @@ dataset_names = [
 
 
 def read_dataset(dataset_name, dataset_path_name):
-    pandas_dataset = pd.read_csv(dataset_path_name)
-    pandas_dataset = pandas_dataset.replace('?', 'unknown')
-    pandas_dataset = pandas_dataset.dropna()
-    pandas_dataset.columns = [sub.replace('%', '') for sub in pandas_dataset.columns]
-    target_value_name = pandas_dataset.columns[-1]
+    dataset = pd.read_csv(dataset_path_name)
+    dataset = dataset.replace('?', 'unknown')
+    dataset = dataset.dropna()
+    dataset.columns = [sub.replace('%', '') for sub in dataset.columns]
+    target_value_name = dataset.columns[-1]
 
     one_hot_encoding = False
     continuous_to_discrete = False
@@ -123,26 +123,29 @@ def read_dataset(dataset_name, dataset_path_name):
             continuous_to_discrete = False
 
     if replace_target_value:
-        pandas_dataset[target_value_name] = pandas_dataset[target_value_name].map({target_false: 0, target_true: 1})
-    pandas_dataset.columns = [sub.replace('-', '_').replace(' ', '').replace('class', 'target_value') for sub in
-                              pandas_dataset.columns]
-    target_value_name = pandas_dataset.columns[-1]
-    feature_names = pandas_dataset.columns[0:-1]
+        dataset[target_value_name] = dataset[target_value_name].map({target_false: 0, target_true: 1})
+    dataset.columns = [sub.replace('-', '_').replace(' ', '').replace('class', 'target_value') for sub in
+                              dataset.columns]
+    target_value_name = dataset.columns[-1]
+    feature_names = dataset.columns[0:-1]
 
     if continuous_to_discrete:
-        pandas_dataset = continuous_to_discrete_column(pandas_dataset, list_of_continuous_columns, number_of_divisions)
+        dataset = continuous_to_discrete_column(dataset, list_of_continuous_columns, number_of_divisions)
 
     if one_hot_encoding:
-        pandas_dataset, feature_names = one_hot_encode_dataframe(pandas_dataset, feature_names)
+        dataset, feature_names = one_hot_encode_dataframe(dataset, feature_names)
 
-    X = pandas_dataset[feature_names]
-    y = pandas_dataset[target_value_name]
+    for column in dataset.columns:
+        dataset[column] = dataset[column].astype(bool)
 
-    dataset = Bunch(
+    X = dataset[feature_names]
+    y = dataset[target_value_name]
+
+    dataset_base = Bunch(
         data=X.to_numpy(),
         target=y.to_numpy(),
         target_names=target_value_name,
         feature_names=X.columns
     )
 
-    return X, y, dataset, target_value_name, pandas_dataset
+    return X, y, dataset_base, target_value_name, dataset
