@@ -4,6 +4,8 @@ from sklearn.utils import Bunch
 from notebooks.IPRules.test_utils import continuous_to_discrete_column, one_hot_encode_dataframe
 
 dataset_names = [
+    "divorce",
+    "kr-vs-kp",
     "australian",
     "criotherapy",
     "data_banknote_authentication",
@@ -15,8 +17,6 @@ dataset_names = [
     "salud-covid",
     "SPECT",
     "ionosphere",
-    "kr-vs-kp",
-    "divorce",
     "connect-4",
     "credit"
 ]

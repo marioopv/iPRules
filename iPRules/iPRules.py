@@ -345,10 +345,12 @@ class iPRules(ClassifierMixin):
 
     def generate_nodes(self, dataset, feature_importances):
         # List of top % important features in the model are obtained. This % regulated by coefficient between [0,1].
-        self.get_top_important_features_list(feature_importances)
+        if not self.most_important_features_:
+            self.get_top_important_features_list(feature_importances)
 
         # Generate Tree
-        return self.generate_tree(dataset=dataset), self.most_important_features_
+        _, minimal_dataset = self.generate_tree(dataset=dataset)
+        return self.nodes_dict, minimal_dataset, self.most_important_features_
 
     def generate_tree(self, dataset):
         # Genera el árbol binario y obtiene las combinaciones que indican que hay un patrón:
@@ -357,6 +359,7 @@ class iPRules(ClassifierMixin):
             return False
 
         minimal_dataset = copy.deepcopy(dataset[self.define_minimal_columns()])
+        minimal_dataset.sort_values(self.most_important_features_, inplace=True, ascending=True)
 
         if self.display_logs:
             print("->Generate new tree based on list")
@@ -366,7 +369,7 @@ class iPRules(ClassifierMixin):
         if self.display_logs:
             print(f"Elapsed time to compute the binary_tree_generator: {elapsed_time:.3f} seconds")
 
-        return self.nodes_dict
+        return self.nodes_dict, minimal_dataset
 
     def define_minimal_columns(self):
         return self.most_important_features_ + [self.target_value_name]
@@ -381,7 +384,7 @@ class iPRules(ClassifierMixin):
         @param node_dict:
         @param feature_importances:
         """
-
+        minimal_dataset = None
         if node_dict is not None:
             self.nodes_dict = node_dict
 
@@ -390,7 +393,7 @@ class iPRules(ClassifierMixin):
 
         # if dict is null calculate it
         if not self.nodes_dict:
-            self.generate_nodes(dataset, feature_importances)
+            _, minimal_dataset, _ = self.generate_nodes(dataset, feature_importances)
 
         if not self.most_important_features_:
             self.get_top_important_features_list(feature_importances)
@@ -398,7 +401,10 @@ class iPRules(ClassifierMixin):
         # Lista de nodos válidos
         self.obtain_pattern_list_of_valid_nodes_with_pvalue()
 
-        minimal_dataset = copy.deepcopy(dataset[self.define_minimal_columns()])
+        if minimal_dataset is None:
+            minimal_dataset = copy.deepcopy(dataset[self.define_minimal_columns()])
+            minimal_dataset.sort_values(self.most_important_features_, inplace=True, ascending=True)
+
         # Categoriza patrones
         self.categorize_patterns(minimal_dataset)
 

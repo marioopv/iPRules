@@ -75,6 +75,11 @@ def generate_results(results_file_name, dataset, test_size,
     train_pandas_dataset = pd.DataFrame(data=np.c_[X_train, y_train],
                                         columns=list(dataset['feature_names']) + [dataset.target_names])
 
+    X_train_int = X_train.astype(int)
+    y_train_int = y_train.astype(int)
+    X_test_int = X_test.astype(int)
+    y_test_int = y_test.astype(int)
+
     print('Sizes (without target):')
     print(f'Original size {dataset.data.shape}')
     print(f'Train size {X_train.shape}')
@@ -87,8 +92,8 @@ def generate_results(results_file_name, dataset, test_size,
 
     # RuleFit
     ruleFit = RuleFitClassifier()
-    ruleFit.fit(X_train, y_train, feature_names=dataset.feature_names)
-    y_pred_test_RuleFit = ruleFit.predict(X_test)
+    ruleFit.fit(X_train_int, y_train_int, feature_names=dataset.feature_names)
+    y_pred_test_RuleFit = ruleFit.predict(X_test_int)
 
     for criteria in criterion:
         generate_results_from_criterion(X_test, X_train, chi_square_percent_point_function, criteria, dataset, f,
@@ -115,7 +120,7 @@ def generate_results_from_criterion(X_test, X_train, chi_square_percent_point_fu
                 scale_feature_coefficient=scaler,
                 min_number_class_per_node=min_class
             )
-            dict_nodes, most_important_features = rules.generate_nodes(train_pandas_dataset,
+            dict_nodes, minimal_dataset, most_important_features = rules.generate_nodes(train_pandas_dataset,
                                                                        ensemble.feature_importances_)
             for min_accuracy in min_accuracy_coefficient:
                 for chi2 in chi_square_percent_point_function:
@@ -252,9 +257,9 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
         rulefit_num_rules_list, rules_num_rules_list, rulecosi_num_rules_list \
         = kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coefficient,
                      min_number_class_per_node, n_splits, n_repeats, scale_feature_coefficient, sorting_method,
-                     target_value_name, y)
+                     target_value_name, y, filename)
 
-    f_score = f'{filename},F1-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    f_score = f'{filename} {chi_square_percent_point_function},F1-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
     f_score += f',{round(tree_f1_score_list.mean() * 100, 2)}±{round(tree_f1_score_list.std() * 100, 2)}'
     f_score += f',{round(ensemble_f1_score_list.mean() * 100, 2)}±{round(ensemble_f1_score_list.std() * 100, 2)}'
     f_score += f',{round(RuleFit_f1_score_list.mean() * 100, 2)}±{round(RuleFit_f1_score_list.std() * 100, 2)}'
@@ -267,7 +272,7 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     print(f_score)
     f.write(f_score)
 
-    accuracy_score = f'{filename},Accuracy-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    accuracy_score = f'{filename} {chi_square_percent_point_function},Accuracy-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
     accuracy_score += f',{round(tree_accuracy_list.mean() * 100, 2)}±{round(tree_accuracy_list.std() * 100, 2)}'
     accuracy_score += f',{round(ensemble_accuracy_list.mean() * 100, 2)}±{round(ensemble_accuracy_list.std() * 100, 2)}'
     accuracy_score += f',{round(RuleFit_accuracy_list.mean() * 100, 2)}±{round(RuleFit_accuracy_list.std() * 100, 2)}'
@@ -280,7 +285,7 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     print(accuracy_score)
     f.write(accuracy_score)
 
-    precision_score = f'{filename},Precision-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    precision_score = f'{filename} {chi_square_percent_point_function},Precision-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
     precision_score += f',{round(tree_precision_score_list.mean() * 100, 2)}±{round(tree_precision_score_list.std() * 100, 2)}'
     precision_score += f',{round(ensemble_precision_score_list.mean() * 100, 2)}±{round(ensemble_precision_score_list.std() * 100, 2)}'
     precision_score += f',{round(RuleFit_precision_score_list.mean() * 100, 2)}±{round(RuleFit_precision_score_list.std() * 100, 2)}'
@@ -293,7 +298,7 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     print(precision_score)
     f.write(precision_score)
 
-    recall = f'{filename},Recall-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    recall = f'{filename} {chi_square_percent_point_function},Recall-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
     recall += f',{round(tree_recall_list.mean() * 100, 2)}±{round(tree_recall_list.std() * 100, 2)}'
     recall += f',{round(ensemble_recall_list.mean() * 100, 2)}±{round(ensemble_recall_list.std() * 100, 2)}'
     recall += f',{round(RuleFit_recall_list.mean() * 100, 2)}±{round(RuleFit_recall_list.std() * 100, 2)}'
@@ -311,7 +316,7 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
 
 def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coefficient,
                min_number_class_per_node, n_splits, n_repeats, scale_feature_coefficient, sorting_method,
-               target_value_name, y):
+               target_value_name, y, filename):
     cobertura_list = []
     rules_accuracy_list = []
     rules_f1_score_list = []
@@ -409,16 +414,19 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rules.fit(train_pandas_dataset, ensemble.feature_importances_)
         clf_tree.fit(X_train, y_train)
         tree = clf_tree.best_estimator_
-
         ruleFit.fit(X_train_int, y_train_int, feature_names=dataset.feature_names)
-        rulecosi.fit(X_train, y_train)
+        if filename != "credit":
+            rulecosi.fit(X_train, y_train)
 
         # Predict
         y_pred_test_ensemble = ensemble.predict(X_test)
         y_pred_test_rules = rules.predict(X_test, sorting_method=sorting_method)
         y_pred_test_tree = tree.predict(X_test)
         y_pred_test_RuleFit = ruleFit.predict(X_test_int)
-        y_pred_test_rulecosi = rulecosi.predict(X_test)
+        if filename == "credit":
+            y_pred_test_rulecosi = []
+        else:
+            y_pred_test_rulecosi = rulecosi.predict(X_test)
 
         # DATASET CATEGORIZABLES
         np_array_rules = np.array(y_pred_test_rules)
@@ -429,7 +437,10 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         filtered_y_pred_test_tree = np.array(y_pred_test_tree)[filter_indices].astype('int64')
         filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
         filtered_y_pred_test_rules = np.array(y_pred_test_rules)[filter_indices].astype('int64')
-        filtered_y_pred_test_rulecosi = np.array(y_pred_test_rulecosi)[filter_indices].astype('int64')
+        if filename == "credit":
+            filtered_y_pred_test_rulecosi = []
+        else:
+            filtered_y_pred_test_rulecosi = np.array(y_pred_test_rulecosi)[filter_indices].astype('int64')
 
         if len(filter_indices) == 0:
             continue
