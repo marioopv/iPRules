@@ -4,10 +4,10 @@ from notebooks.IPRules.test_utils import generate_battery_test
 # Different values
 n_splits = 10
 n_repeats = 3
-chi_square_percent_point_function_list = [0.95, 0.96, 0.97, 0.98, 0.99, 0.995]
+chi_square_percent_point_function_list = [0.95, 0.98, 0.995]
 scale_feature_coefficient = 0.01
 min_accuracy_coefficient = 0.9
-min_number_class_per_node = 3
+min_number_class_per_node = 3 #TODO: Optimizar 3,5,7,10
 sorting_method = "target_accuracy"
 
 path = f'../..'

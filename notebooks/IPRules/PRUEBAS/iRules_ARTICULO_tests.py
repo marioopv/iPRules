@@ -14,7 +14,8 @@ X, y, dataset, target_value_name, pandas_dataset = read_dataset(filename, datase
 
 # Different values
 # TIME CONSUMING
-criterion = ["gini", "entropy", "log_loss"]
+# criterion = ["gini", "entropy", "log_loss"]
+criterion = ["gini"]
 scale_feature_coefficient = [0.001, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4]
 min_number_class_per_node = [1, 2, 3, 5]
 
