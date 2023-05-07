@@ -15,7 +15,7 @@ path = f'../..'
 results_file_name = f'{path}/Results/battery_test_all.csv'
 
 
-f = open(results_file_name, "w")
+f = open(results_file_name, "a")
 file_header = f'Dataset, scorer, Coverage, DT, RF, RF+RFIT, RF+RC, RF+Rules, RF+RFIT num rules, RF+Rules num rules, RF+RC num rules\n'
 print(file_header)
 f.write(file_header)
