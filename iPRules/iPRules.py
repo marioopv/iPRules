@@ -38,6 +38,7 @@ class iPRules(ClassifierMixin):
                  min_number_class_per_node=3
                  ):
         self.rules_ = []
+        self.minimal_rules_ = []
         self.feature_importance_list = None
         self.most_important_features_ = None
         self.nodes_dict = {}
@@ -374,7 +375,7 @@ class iPRules(ClassifierMixin):
     def define_minimal_columns(self):
         return self.most_important_features_ + [self.target_value_name]
 
-    def fit(self, dataset, feature_importances, node_dict=None, most_important_features=None):
+    def fit(self, dataset, feature_importances, node_dict=None, most_important_features=None, sorting_method="target_accuracy"):
         """
         Get list of top features and generate rules
         :param dataset:
@@ -408,7 +409,35 @@ class iPRules(ClassifierMixin):
         # Categoriza patrones
         self.categorize_patterns(minimal_dataset)
 
+        # Prune rules
+        self.prune_rules(sorting_method)
+
         return self
+
+    def prune_rules(self, sorting_method="target_accuracy"):
+
+        start_time = time.time()
+        if self.display_logs:
+            print("->Prune Rules")
+
+        sorted_rules = self.sorting(sorting_method)
+        for idx, current_rule in reversed(list(enumerate(sorted_rules))):
+            current_full_rule = current_rule.get_full_rule()
+            should_include = True
+            for new_index in range(len(sorted_rules)-1, idx, -1):
+                new_current_full_rule = sorted_rules[new_index].get_full_rule()
+                if current_full_rule in new_current_full_rule:
+                    # no valida
+                    should_include = False
+                    break
+            if should_include:
+                self.minimal_rules_.append(current_rule)
+
+        elapsed_time = time.time() - start_time
+        if self.display_logs:
+            print(f"Elapsed time to compute the prune_rules: {elapsed_time:.3f} seconds")
+
+        return self.minimal_rules_
 
     def sorting(self, sorting_method="target_accuracy"):
         match sorting_method:
@@ -448,9 +477,13 @@ class iPRules(ClassifierMixin):
             @return:
         """
         predictions = []
+
+        if not self.minimal_rules_:
+            self.prune_rules(sorting_method)
+
         for x in X:
             categorize_rule = None
-            for rule in self.sorting(sorting_method):
+            for rule in self.minimal_rules_:
                 prediction = rule.Predict(x)
                 if prediction is not None:
                     predictions.append(prediction)
@@ -464,13 +497,17 @@ class iPRules(ClassifierMixin):
     def description(self):
         display = '> ++++++++++++++++++++++++++++\n'
         display += f'> iPRules --  Number of Rules {len(self.rules_)}:\n'
+        display += f'> iPRules --  Number of Minimal Rules {len(self.minimal_rules_)}:\n'
         display += '> ++++++++++++++++++++++++++++\n'
         return display
 
     def __str__(self):
         display = self.description()
-        sorted_rules = self.sorting()
-        for num in range(len(sorted_rules)):
-            display += f'{sorted_rules[num]}'
+
+        if not self.minimal_rules_:
+            self.prune_rules()
+
+        for num in range(len(self.minimal_rules_)):
+            display += f'{self.minimal_rules_[num]}'
 
         return display

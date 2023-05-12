@@ -1,5 +1,4 @@
 import copy
-
 import numpy as np
 import pandas as pd
 from imodels import RuleFitClassifier
@@ -11,7 +10,6 @@ from sklearn.model_selection import GridSearchCV, RepeatedStratifiedKFold
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.tree import DecisionTreeClassifier
-import dask.dataframe as dd
 
 from iPRules.iPRules import iPRules
 
@@ -49,12 +47,12 @@ def one_hot_encode_dataframe(data, feature_names):
     return encoded_pandas_dataset, encoded_feature_names
 
 
-def generate_results(results_file_name, dataset, test_size,
+def generate_results(results_file_name, X, y, dataset, test_size,
                      chi_square_percent_point_function,
                      scale_feature_coefficient,
                      min_accuracy_coefficient,
                      min_number_class_per_node,
-                     sorting_method, criterion="gini"):
+                     sorting_method, criterion="gini", n_splits=10, n_repeats=3):
     # WRITE FILE
     f = open(results_file_name, "w")
     file_header = "ensemble_criterion, chi_square_percent_point_function, scale_feature_coefficient, min_accuracy_coefficient, " \
@@ -64,17 +62,29 @@ def generate_results(results_file_name, dataset, test_size,
     file_header += ', ensemble_accuracy, ensemble_f1_score, ensemble_precision_score, ensemble_recall, ensemble_roc_auc_score'
     file_header += ', tree_accuracy, tree_f1_score, tree_precision_score, tree_recall_score, tree_roc_auc_score'
     file_header += ', RuleFit_accuracy, RuleFit_f1_score, RuleFit_precision_score, RuleFit_recall_score, RuleFit_roc_auc_score'
+    file_header += ', RuleCOSI_accuracy, RuleCOSI_f1_score, RuleCOSI_precision_score, RuleCOSI_recall_score, RuleCOSI_roc_auc_score'
     file_header += ', rules_accuracy, rules_f1_score, rules_precision_score, rules_recall_score, rules_roc_auc_score\n'
 
     print(file_header)
     f.write(file_header)
 
-    # Define dataset
-    X_train, X_test, y_train, y_test = train_test_split(dataset.data, dataset.target, test_size=test_size,
-                                                        random_state=1)
+    repeated_kfold = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats)
+    for train, test in repeated_kfold.split(X, y):
+        X_train = X.loc[train].to_numpy()
+        y_train = y.loc[train].to_numpy()
+        X_test = X.loc[test].to_numpy()
+        y_test = y.loc[test].to_numpy()
+        for_results(X_train, X_test, y_train, y_test, chi_square_percent_point_function, criterion, dataset, f,
+                    min_accuracy_coefficient,
+                    min_number_class_per_node, scale_feature_coefficient, sorting_method, test_size)
+    f.close()
+
+
+def for_results(X_train, X_test, y_train, y_test, chi_square_percent_point_function, criterion, dataset, f,
+                min_accuracy_coefficient,
+                min_number_class_per_node, scale_feature_coefficient, sorting_method, test_size):
     train_pandas_dataset = pd.DataFrame(data=np.c_[X_train, y_train],
                                         columns=list(dataset['feature_names']) + [dataset.target_names])
-
     X_train_int = X_train.astype(int)
     y_train_int = y_train.astype(int)
     X_test_int = X_test.astype(int)
@@ -89,18 +99,15 @@ def generate_results(results_file_name, dataset, test_size,
     tree = DecisionTreeClassifier(random_state=0)
     tree.fit(X_train, y_train)
     y_pred_test_tree = tree.predict(X_test)
-
     # RuleFit
     ruleFit = RuleFitClassifier()
     ruleFit.fit(X_train_int, y_train_int, feature_names=dataset.feature_names)
     y_pred_test_RuleFit = ruleFit.predict(X_test_int)
-
     for criteria in criterion:
         generate_results_from_criterion(X_test, X_train, chi_square_percent_point_function, criteria, dataset, f,
                                         min_accuracy_coefficient, min_number_class_per_node, scale_feature_coefficient,
                                         sorting_method, train_pandas_dataset, y_pred_test_RuleFit, y_pred_test_tree,
                                         y_test, y_train)
-    f.close()
 
 
 def generate_results_from_criterion(X_test, X_train, chi_square_percent_point_function, criteria, dataset, f,
@@ -111,6 +118,15 @@ def generate_results_from_criterion(X_test, X_train, chi_square_percent_point_fu
     ensemble = RandomForestClassifier(criterion=criteria)
     ensemble.fit(X_train, y_train)
     y_pred_test_ensemble = ensemble.predict(X_test)
+
+    rulecosi = RuleCOSIClassifier(
+        base_ensemble=ensemble,
+        conf_threshold=0.9,
+        cov_threshold=0.0,
+        column_names=dataset.feature_names)
+    rulecosi.fit(X_train, y_train)
+    y_pred_test_rulecosi = rulecosi.predict(X_test)
+
     for scaler in scale_feature_coefficient:
         for min_class in min_number_class_per_node:
             # PRECALCULATE DICT IN ORDER TO AVOID RERUNS OF A TIME CONSUMING PART OF THE CODE
@@ -121,7 +137,7 @@ def generate_results_from_criterion(X_test, X_train, chi_square_percent_point_fu
                 min_number_class_per_node=min_class
             )
             dict_nodes, minimal_dataset, most_important_features = rules.generate_nodes(train_pandas_dataset,
-                                                                       ensemble.feature_importances_)
+                                                                                        ensemble.feature_importances_)
             for min_accuracy in min_accuracy_coefficient:
                 for chi2 in chi_square_percent_point_function:
                     new_rules = iPRules(
@@ -149,11 +165,11 @@ def generate_results_from_criterion(X_test, X_train, chi_square_percent_point_fu
 
                     print_results(X_test, chi2, criteria, f, min_accuracy, min_class, new_rules, rules, scaler,
                                   sorting_method, y_pred_test_RuleFit, y_pred_test_ensemble, y_pred_test_tree,
-                                  y_test)
+                                  y_test, y_pred_test_rulecosi)
 
 
 def print_results(X_test, chi2, criteria, f, min_accuracy, min_class, new_rules, rules, scaler, sorting_method,
-                  y_pred_test_RuleFit, y_pred_test_ensemble, y_pred_test_tree, y_test):
+                  y_pred_test_RuleFit, y_pred_test_ensemble, y_pred_test_tree, y_test, y_pred_test_rulecosi):
     for sorting in sorting_method:
         if not new_rules.rules_:
             empty_restuls(chi2, criteria, f, min_accuracy, min_class, scaler, y_test)
@@ -167,7 +183,7 @@ def print_results(X_test, chi2, criteria, f, min_accuracy, min_class, new_rules,
             continue
         line_results = generate_line_results(chi2, criteria, min_accuracy, min_class, rules, scaler, sorting,
                                              y_pred_test_RuleFit, y_pred_test_ensemble, y_pred_test_rules,
-                                             y_pred_test_tree, y_test)
+                                             y_pred_test_tree, y_test, y_pred_test_rulecosi)
         print(line_results)
         f.write(line_results)
 
@@ -184,48 +200,71 @@ def empty_restuls(chi2, criteria, f, min_accuracy, min_class, scaler, y_test):
 
 
 def generate_line_results(chi2, criteria, min_accuracy, min_class, rules, scaler, sorting, y_pred_test_RuleFit,
-                          y_pred_test_ensemble, y_pred_test_rules, y_pred_test_tree, y_test):
+                          y_pred_test_ensemble, y_pred_test_rules, y_pred_test_tree, y_test, y_pred_test_rulecosi):
     # TODO: DIVIDE METHODS
     # DATASET CATEGORIZABLES
     np_array_rules = np.array(y_pred_test_rules)
     filter_indices = np.where(np_array_rules != None)[0]
     filtered_y_test = np.array(y_test)[filter_indices].astype('int64')
     filtered_y_pred_test_ensemble = np.array(y_pred_test_ensemble)[filter_indices].astype('int64')
+    filtered_y_pred_test_rulecosi = np.array(y_pred_test_rulecosi)[filter_indices].astype('int64')
     filtered_y_pred_test_tree = np.array(y_pred_test_tree)[filter_indices].astype('int64')
     filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
     filtered_y_pred_test_rules = np.array(y_pred_test_rules)[filter_indices].astype('int64')
 
     # ACCURACY
     ensemble_accuracy = metrics.accuracy_score(filtered_y_test, filtered_y_pred_test_ensemble)
+    rulecosi_accuracy = metrics.accuracy_score(filtered_y_test, filtered_y_pred_test_rulecosi)
     tree_accuracy = metrics.accuracy_score(filtered_y_test, filtered_y_pred_test_tree)
     RuleFit_accuracy = metrics.accuracy_score(filtered_y_test, filtered_y_pred_test_RuleFit)
     rules_accuracy = metrics.accuracy_score(filtered_y_test, filtered_y_pred_test_rules)
     # F1
     ensemble_f1_score = metrics.f1_score(filtered_y_test, filtered_y_pred_test_ensemble)
+    rulecosi_f1_score = metrics.f1_score(filtered_y_test, filtered_y_pred_test_rulecosi)
     tree_f1_score = metrics.f1_score(filtered_y_test, filtered_y_pred_test_tree)
     RuleFit_f1_score = metrics.f1_score(filtered_y_test, filtered_y_pred_test_RuleFit)
     rules_f1_score = metrics.f1_score(filtered_y_test, filtered_y_pred_test_rules)
     # Precision
     ensemble_precision_score = metrics.precision_score(filtered_y_test, filtered_y_pred_test_ensemble)
+    rulecosi_precision_score = metrics.precision_score(filtered_y_test, filtered_y_pred_test_rulecosi)
     tree_precision_score = metrics.precision_score(filtered_y_test, filtered_y_pred_test_tree)
     RuleFit_precision_score = metrics.precision_score(filtered_y_test, filtered_y_pred_test_RuleFit)
     rules_precision_score = metrics.precision_score(filtered_y_test, filtered_y_pred_test_rules)
     # Recall
     ensemble_recall = metrics.recall_score(filtered_y_test, filtered_y_pred_test_ensemble)
+    rulecosi_recall_score = metrics.recall_score(filtered_y_test, filtered_y_pred_test_rulecosi)
     tree_recall_score = metrics.recall_score(filtered_y_test, filtered_y_pred_test_tree)
     RuleFit_recall_score = metrics.recall_score(filtered_y_test, filtered_y_pred_test_RuleFit)
     rules_recall_score = metrics.recall_score(filtered_y_test, filtered_y_pred_test_rules)
 
     # ROC AUC
-    ensemble_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_ensemble)
-    tree_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_tree)
-    RuleFit_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_RuleFit)
-    rules_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_rules)
 
-    line_results = f'{criteria}, {chi2}, {scaler}, {min_accuracy}, {min_class}, {sorting}, {len(y_test)}, {len(filtered_y_test)}, {len(rules.rules_)}, {len(filtered_y_pred_test_rules) / len(y_test)}'
+    try:
+        ensemble_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_ensemble)
+    except ValueError:
+        ensemble_roc_auc_score = 0.0
+    try:
+        tree_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_tree)
+    except ValueError:
+        tree_roc_auc_score = 0.0
+    try:
+        RuleFit_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_RuleFit)
+    except ValueError:
+        RuleFit_roc_auc_score = 0.0
+    try:
+        rules_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_rules)
+    except ValueError:
+        rules_roc_auc_score = 0.0
+    try:
+        rulecosi_roc_auc_score = metrics.roc_auc_score(filtered_y_test, filtered_y_pred_test_rulecosi)
+    except ValueError:
+        rulecosi_roc_auc_score = 0.0
+
+    line_results = f'{criteria}, {chi2}, {scaler}, {min_accuracy}, {min_class}, {sorting}, {len(y_test)}, {len(filtered_y_test)}, {len(rules.minimal_rules_)}, {len(filtered_y_pred_test_rules) / len(y_test)}'
     line_results += f', {ensemble_accuracy}, {ensemble_f1_score}, {ensemble_precision_score}, {ensemble_recall}, {ensemble_roc_auc_score}'
     line_results += f', {tree_accuracy}, {tree_f1_score}, {tree_precision_score}, {tree_recall_score}, {tree_roc_auc_score}'
     line_results += f', {RuleFit_accuracy}, {RuleFit_f1_score}, {RuleFit_precision_score}, {RuleFit_recall_score}, {RuleFit_roc_auc_score}'
+    line_results += f', {rulecosi_accuracy}, {rulecosi_f1_score}, {rulecosi_precision_score}, {rulecosi_recall_score}, {rulecosi_roc_auc_score}'
     line_results += f', {rules_accuracy}, {rules_f1_score}, {rules_precision_score}, {rules_recall_score}, {rules_roc_auc_score}\n'
     return line_results
 
@@ -259,15 +298,15 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
                      min_number_class_per_node, n_splits, n_repeats, scale_feature_coefficient, sorting_method,
                      target_value_name, y, filename)
 
-    f_score = f'{filename} {chi_square_percent_point_function},F1-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    f_score = f'{filename} chi2:{chi_square_percent_point_function} minclass:{min_number_class_per_node},F1-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
     f_score += f',{round(tree_f1_score_list.mean() * 100, 2)}±{round(tree_f1_score_list.std() * 100, 2)}'
     f_score += f',{round(ensemble_f1_score_list.mean() * 100, 2)}±{round(ensemble_f1_score_list.std() * 100, 2)}'
     f_score += f',{round(RuleFit_f1_score_list.mean() * 100, 2)}±{round(RuleFit_f1_score_list.std() * 100, 2)}'
+    f_score += f',{round(rulefit_num_rules_list.mean(), 2)}±{round(rulefit_num_rules_list.std(), 2)}'
     f_score += f',{round(rulecosi_f1_score_list.mean() * 100, 2)}±{round(rulecosi_f1_score_list.std() * 100, 2)}'
+    f_score += f',{round(rulecosi_num_rules_list.mean(), 2)}±{round(rulecosi_num_rules_list.std(), 2)}'
     f_score += f',{round(rules_f1_score_list.mean() * 100, 2)}±{round(rules_f1_score_list.std() * 100, 2)}'
-    f_score += f',{round(rulefit_num_rules_list.mean() * 100, 2)}±{round(rulefit_num_rules_list.std() * 100, 2)}'
-    f_score += f',{round(rules_num_rules_list.mean() * 100, 2)}±{round(rules_num_rules_list.std() * 100, 2)}'
-    f_score += f',{round(rulecosi_num_rules_list.mean() * 100, 2)}±{round(rulecosi_num_rules_list.std() * 100, 2)}\n'
+    f_score += f',{round(rules_num_rules_list.mean(), 2)}±{round(rules_num_rules_list.std(), 2)}\n'
 
     print(f_score)
     f.write(f_score)
@@ -276,11 +315,11 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     accuracy_score += f',{round(tree_accuracy_list.mean() * 100, 2)}±{round(tree_accuracy_list.std() * 100, 2)}'
     accuracy_score += f',{round(ensemble_accuracy_list.mean() * 100, 2)}±{round(ensemble_accuracy_list.std() * 100, 2)}'
     accuracy_score += f',{round(RuleFit_accuracy_list.mean() * 100, 2)}±{round(RuleFit_accuracy_list.std() * 100, 2)}'
+    accuracy_score += f',{round(rulefit_num_rules_list.mean(), 2)}±{round(rulefit_num_rules_list.std(), 2)}'
     accuracy_score += f',{round(rulecosi_accuracy_list.mean() * 100, 2)}±{round(rulecosi_accuracy_list.std() * 100, 2)}'
+    accuracy_score += f',{round(rulecosi_num_rules_list.mean(), 2)}±{round(rulecosi_num_rules_list.std(), 2)}'
     accuracy_score += f',{round(rules_accuracy_list.mean() * 100, 2)}±{round(rules_accuracy_list.std() * 100, 2)}'
-    accuracy_score += f',{round(rulefit_num_rules_list.mean() * 100, 2)}±{round(rulefit_num_rules_list.std() * 100, 2)}'
-    accuracy_score += f',{round(rules_num_rules_list.mean() * 100, 2)}±{round(rules_num_rules_list.std() * 100, 2)}'
-    accuracy_score += f',{round(rulecosi_num_rules_list.mean() * 100, 2)}±{round(rulecosi_num_rules_list.std() * 100, 2)}\n'
+    accuracy_score += f',{round(rules_num_rules_list.mean(), 2)}±{round(rules_num_rules_list.std(), 2)}\n'
 
     print(accuracy_score)
     f.write(accuracy_score)
@@ -289,11 +328,11 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     precision_score += f',{round(tree_precision_score_list.mean() * 100, 2)}±{round(tree_precision_score_list.std() * 100, 2)}'
     precision_score += f',{round(ensemble_precision_score_list.mean() * 100, 2)}±{round(ensemble_precision_score_list.std() * 100, 2)}'
     precision_score += f',{round(RuleFit_precision_score_list.mean() * 100, 2)}±{round(RuleFit_precision_score_list.std() * 100, 2)}'
+    precision_score += f',{round(rulefit_num_rules_list.mean(), 2)}±{round(rulefit_num_rules_list.std(), 2)}'
     precision_score += f',{round(rulecosi_precision_score_list.mean() * 100, 2)}±{round(rulecosi_precision_score_list.std() * 100, 2)}'
+    precision_score += f',{round(rulecosi_num_rules_list.mean(), 2)}±{round(rulecosi_num_rules_list.std(), 2)}'
     precision_score += f',{round(rules_precision_score_list.mean() * 100, 2)}±{round(rules_precision_score_list.std() * 100, 2)}'
-    precision_score += f',{round(rulefit_num_rules_list.mean() * 100, 2)}±{round(rulefit_num_rules_list.std() * 100, 2)}'
-    precision_score += f',{round(rules_num_rules_list.mean() * 100, 2)}±{round(rules_num_rules_list.std() * 100, 2)}'
-    precision_score += f',{round(rulecosi_num_rules_list.mean() * 100, 2)}±{round(rulecosi_num_rules_list.std() * 100, 2)}\n'
+    precision_score += f',{round(rules_num_rules_list.mean(), 2)}±{round(rules_num_rules_list.std(), 2)}\n'
 
     print(precision_score)
     f.write(precision_score)
@@ -302,11 +341,11 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     recall += f',{round(tree_recall_list.mean() * 100, 2)}±{round(tree_recall_list.std() * 100, 2)}'
     recall += f',{round(ensemble_recall_list.mean() * 100, 2)}±{round(ensemble_recall_list.std() * 100, 2)}'
     recall += f',{round(RuleFit_recall_list.mean() * 100, 2)}±{round(RuleFit_recall_list.std() * 100, 2)}'
+    recall += f',{round(rulefit_num_rules_list.mean(), 2)}±{round(rulefit_num_rules_list.std(), 2)}'
     recall += f',{round(rulecosi_recall_list.mean() * 100, 2)}±{round(rulecosi_recall_list.std() * 100, 2)}'
+    recall += f',{round(rulecosi_num_rules_list.mean(), 2)}±{round(rulecosi_num_rules_list.std(), 2)}'
     recall += f',{round(rules_recall_list.mean() * 100, 2)}±{round(rules_recall_list.std() * 100, 2)}'
-    recall += f',{round(rulefit_num_rules_list.mean() * 100, 2)}±{round(rulefit_num_rules_list.std() * 100, 2)}'
-    recall += f',{round(rules_num_rules_list.mean() * 100, 2)}±{round(rules_num_rules_list.std() * 100, 2)}'
-    recall += f',{round(rulecosi_num_rules_list.mean() * 100, 2)}±{round(rulecosi_num_rules_list.std() * 100, 2)}\n'
+    recall += f',{round(rules_num_rules_list.mean(), 2)}±{round(rules_num_rules_list.std(), 2)}\n'
 
     print(recall)
     f.write(recall)
@@ -414,19 +453,22 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rules.fit(train_pandas_dataset, ensemble.feature_importances_)
         clf_tree.fit(X_train, y_train)
         tree = clf_tree.best_estimator_
-        ruleFit.fit(X_train_int, y_train_int, feature_names=dataset.feature_names)
+
         if filename != "credit":
             rulecosi.fit(X_train, y_train)
+            ruleFit.fit(X_train_int, y_train_int, feature_names=dataset.feature_names)
 
         # Predict
         y_pred_test_ensemble = ensemble.predict(X_test)
         y_pred_test_rules = rules.predict(X_test, sorting_method=sorting_method)
         y_pred_test_tree = tree.predict(X_test)
-        y_pred_test_RuleFit = ruleFit.predict(X_test_int)
+
         if filename == "credit":
             y_pred_test_rulecosi = []
+            y_pred_test_RuleFit = []
         else:
             y_pred_test_rulecosi = rulecosi.predict(X_test)
+            y_pred_test_RuleFit = ruleFit.predict(X_test_int)
 
         # DATASET CATEGORIZABLES
         np_array_rules = np.array(y_pred_test_rules)
@@ -435,11 +477,13 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         filtered_y_test_int = np.array(y_test_int)[filter_indices].astype('int64')
         filtered_y_pred_test_ensemble = np.array(y_pred_test_ensemble)[filter_indices].astype('int64')
         filtered_y_pred_test_tree = np.array(y_pred_test_tree)[filter_indices].astype('int64')
-        filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
+
         filtered_y_pred_test_rules = np.array(y_pred_test_rules)[filter_indices].astype('int64')
         if filename == "credit":
             filtered_y_pred_test_rulecosi = []
+            filtered_y_pred_test_RuleFit = []
         else:
+            filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
             filtered_y_pred_test_rulecosi = np.array(y_pred_test_rulecosi)[filter_indices].astype('int64')
 
         if len(filter_indices) == 0:
@@ -493,7 +537,7 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rulecosi_roc_auc_score_list.append(rulecosi_roc_auc_score)
 
         rulefit_num_rules_list.append(len(ruleFit.rules_))
-        rules_num_rules_list.append(len(rules.rules_))
+        rules_num_rules_list.append(len(rules.minimal_rules_))
         rulecosi_num_rules_list.append(len(rulecosi.simplified_ruleset_.rules))
 
     return np.array(cobertura_list), \

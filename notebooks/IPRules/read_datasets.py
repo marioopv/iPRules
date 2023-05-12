@@ -125,7 +125,7 @@ def read_dataset(dataset_name, dataset_path_name):
     if replace_target_value:
         dataset[target_value_name] = dataset[target_value_name].map({target_false: 0, target_true: 1})
     dataset.columns = [sub.replace('-', '_').replace(' ', '').replace('class', 'target_value') for sub in
-                              dataset.columns]
+                       dataset.columns]
     target_value_name = dataset.columns[-1]
     feature_names = dataset.columns[0:-1]
 
