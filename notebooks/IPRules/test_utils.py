@@ -311,7 +311,7 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     print(f_score)
     f.write(f_score)
 
-    accuracy_score = f'{filename} {chi_square_percent_point_function},Accuracy-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    accuracy_score = f'{filename} chi2:{chi_square_percent_point_function} minclass:{min_number_class_per_node},Accuracy-score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
     accuracy_score += f',{round(tree_accuracy_list.mean() * 100, 2)}±{round(tree_accuracy_list.std() * 100, 2)}'
     accuracy_score += f',{round(ensemble_accuracy_list.mean() * 100, 2)}±{round(ensemble_accuracy_list.std() * 100, 2)}'
     accuracy_score += f',{round(RuleFit_accuracy_list.mean() * 100, 2)}±{round(RuleFit_accuracy_list.std() * 100, 2)}'
@@ -324,7 +324,7 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     print(accuracy_score)
     f.write(accuracy_score)
 
-    precision_score = f'{filename} {chi_square_percent_point_function},Precision-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    precision_score = f'{filename} chi2:{chi_square_percent_point_function} minclass:{min_number_class_per_node},Precision-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
     precision_score += f',{round(tree_precision_score_list.mean() * 100, 2)}±{round(tree_precision_score_list.std() * 100, 2)}'
     precision_score += f',{round(ensemble_precision_score_list.mean() * 100, 2)}±{round(ensemble_precision_score_list.std() * 100, 2)}'
     precision_score += f',{round(RuleFit_precision_score_list.mean() * 100, 2)}±{round(RuleFit_precision_score_list.std() * 100, 2)}'
@@ -337,7 +337,7 @@ def generate_battery_test(f, filename, X, y, dataset, target_value_name, n_split
     print(precision_score)
     f.write(precision_score)
 
-    recall = f'{filename} {chi_square_percent_point_function},Recall-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
+    recall = f'{filename} chi2:{chi_square_percent_point_function} minclass:{min_number_class_per_node},Recall-Score,{round(cobertura_list.mean() * 100, 2)}±{round(cobertura_list.std() * 100, 2)}'
     recall += f',{round(tree_recall_list.mean() * 100, 2)}±{round(tree_recall_list.std() * 100, 2)}'
     recall += f',{round(ensemble_recall_list.mean() * 100, 2)}±{round(ensemble_recall_list.std() * 100, 2)}'
     recall += f',{round(RuleFit_recall_list.mean() * 100, 2)}±{round(RuleFit_recall_list.std() * 100, 2)}'
