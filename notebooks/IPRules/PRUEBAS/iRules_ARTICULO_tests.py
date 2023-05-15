@@ -8,7 +8,7 @@ from notebooks.IPRules.test_utils import generate_results
 # filename = "divorce"
 # filename = "connect-4"
 # filename = "SPECT"
-filename = "credit"
+filename = "divorce"
 
 path = f'../../..'
 
@@ -24,8 +24,8 @@ n_repeats = 3
 # TIME CONSUMING
 # criterion = ["gini", "entropy", "log_loss"]
 criterion = ["gini"]
-scale_feature_coefficient = [0.01, 0.05, 0.1, 0.2, 0.2]
-min_number_class_per_node = [3, 5, 7, 10]
+scale_feature_coefficient = [0.01, 0.05, 0.1, 0.2, 0.2, 0.4]
+min_number_class_per_node = [1, 3, 5, 7, 10]
 
 # NOT TIME CONSUMING
 min_accuracy_coefficient = [0.85, 0.9, 0.95]

@@ -1,6 +1,9 @@
 from notebooks.IPRules.read_datasets import dataset_names, read_dataset
 from notebooks.IPRules.test_utils import generate_battery_test
 
+import warnings
+warnings.filterwarnings("ignore")
+
 # Different values
 n_splits = 10
 n_repeats = 3
