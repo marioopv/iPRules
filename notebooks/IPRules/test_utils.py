@@ -509,9 +509,12 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         tree_precision_score_list.append(tree_precision_score)
         tree_recall_list.append(tree_recall)
         tree_roc_auc_score_list.append(tree_roc_auc_score)
+        if filename == "credit":
+            RuleFit_accuracy, RuleFit_f1_score, RuleFit_precision_score, RuleFit_recall, RuleFit_roc_auc_score = 0,0,0,0,0
+        else:
+            RuleFit_accuracy, RuleFit_f1_score, RuleFit_precision_score, RuleFit_recall, RuleFit_roc_auc_score = \
+                generate_scores(filtered_y_test_int, filtered_y_pred_test_RuleFit)
 
-        RuleFit_accuracy, RuleFit_f1_score, RuleFit_precision_score, RuleFit_recall, RuleFit_roc_auc_score = generate_scores(
-            filtered_y_test_int, filtered_y_pred_test_RuleFit)
         RuleFit_accuracy_list.append(RuleFit_accuracy)
         RuleFit_f1_score_list.append(RuleFit_f1_score)
         RuleFit_precision_score_list.append(RuleFit_precision_score)
@@ -527,8 +530,11 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rules_recall_list.append(rules_recall)
         rules_roc_auc_score_list.append(rules_roc_auc_score)
 
-        rulecosi_accuracy, rulecosi_f1_score, rulecosi_precision_score, rulecosi_recall, rulecosi_roc_auc_score = generate_scores(
-            filtered_y_test, filtered_y_pred_test_rulecosi)
+        if filename == "credit":
+            rulecosi_accuracy, rulecosi_f1_score, rulecosi_precision_score, rulecosi_recall, rulecosi_roc_auc_score = 0, 0, 0, 0, 0
+        else:
+            rulecosi_accuracy, rulecosi_f1_score, rulecosi_precision_score, rulecosi_recall, rulecosi_roc_auc_score = \
+                generate_scores(filtered_y_test, filtered_y_pred_test_rulecosi)
 
         rulecosi_accuracy_list.append(rulecosi_accuracy)
         rulecosi_f1_score_list.append(rulecosi_f1_score)
@@ -536,9 +542,15 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rulecosi_recall_list.append(rulecosi_recall)
         rulecosi_roc_auc_score_list.append(rulecosi_roc_auc_score)
 
-        rulefit_num_rules_list.append(len(ruleFit.rules_))
         rules_num_rules_list.append(len(rules.minimal_rules_))
-        rulecosi_num_rules_list.append(len(rulecosi.simplified_ruleset_.rules))
+
+        if filename == "credit":
+            rulefit_num_rules_list.append(0)
+            rulecosi_num_rules_list.append(0)
+        else:
+            rulefit_num_rules_list.append(len(ruleFit.rules_))
+            rulecosi_num_rules_list.append(len(rulecosi.simplified_ruleset_.rules))
+
 
     return np.array(cobertura_list), \
         np.array(RuleFit_accuracy_list), np.array(RuleFit_f1_score_list), np.array(

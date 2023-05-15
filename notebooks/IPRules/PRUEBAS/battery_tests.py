@@ -9,12 +9,12 @@ chi_square_percent_point_function_list = [0.99]
 scale_feature_coefficient = 0.01
 min_accuracy_coefficient = 0.95
 # min_number_class_per_node_list = [1, 3, 5, 7, 10]
-min_number_class_per_node_list = [3]
+min_number_class_per_node_list = [3, 5, 7, 1, 10]
 sorting_method = "target_accuracy"
 
 path = f'../..'
 
-results_file_name = f'{path}/Results/battery_test_all_nodes_3.csv'
+results_file_name = f'{path}/Results/battery_test_all_nodes_credit.csv'
 
 f = open(results_file_name, "w")
 file_header = f'Dataset, scorer, Coverage, DT, RF, RF+RFIT, RF+RFIT num rules, RF+RC, RF+RC num rules, RF+Rules, RF+Rules num rules\n'

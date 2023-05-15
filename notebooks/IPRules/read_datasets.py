@@ -21,7 +21,6 @@ dataset_names = [
     "credit"
 ]
 
-
 def read_dataset(dataset_name, dataset_path_name):
     dataset = pd.read_csv(dataset_path_name)
     dataset = dataset.replace('?', 'unknown')
