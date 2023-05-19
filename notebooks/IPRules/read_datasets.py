@@ -17,8 +17,8 @@ dataset_names = [
     "salud-covid",
     "SPECT",
     "ionosphere",
-    "connect-4",
-    "credit"
+    "credit",
+    "onnect-4"
 ]
 
 def read_dataset(dataset_name, dataset_path_name):

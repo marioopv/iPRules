@@ -8,7 +8,7 @@ from notebooks.IPRules.test_utils import generate_results
 # filename = "divorce"
 # filename = "connect-4"
 # filename = "SPECT"
-filename = "divorce"
+filename = "connect-4"
 
 path = f'../../..'
 
