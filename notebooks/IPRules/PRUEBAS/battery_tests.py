@@ -26,7 +26,7 @@ sorting_method = "target_accuracy"
 
 
 path = f'../..'
-results_file_name = f'{path}/Results/battery_test_all_nodes_selected.csv'
+results_file_name = f'{path}/Results/battery_test_all_nodes.csv'
 
 f = open(results_file_name, "w")
 file_header = f'Dataset, scorer, Coverage, DT, RF, RF+RFIT, RF+RFIT num rules, RF+RC, RF+RC num rules, RF+Rules, RF+Rules num rules\n'

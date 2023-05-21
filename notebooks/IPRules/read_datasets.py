@@ -18,9 +18,8 @@ dataset_names = [
     "SPECT",
     "ionosphere",
     "credit",
-    "onnect-4"
+    "connect-4"
 ]
-
 def read_dataset(dataset_name, dataset_path_name):
     dataset = pd.read_csv(dataset_path_name)
     dataset = dataset.replace('?', 'unknown')
