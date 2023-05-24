@@ -8,8 +8,9 @@ warnings.filterwarnings("ignore")
 n_splits = 10
 n_repeats = 3
 chi_square_percent_point_function_list = [0.95, 0.97, 0.99]
-scale_feature_coefficient_list = [0.01]
-min_accuracy_coefficient_list = [0.6, 0.8, 0.95]
+scale_feature_coefficient_list = [0.05]
+scale_feature_coefficient_list = [0.1]
+min_accuracy_coefficient_list = [0.8, 0.9, 0.95]
 # min_number_class_per_node_list = [1, 3, 5, 7, 10]
 min_number_class_per_node_list = [3, 5, 7]
 sorting_method = "target_accuracy"
