@@ -436,7 +436,7 @@ class iPRules(ClassifierMixin):
         elapsed_time = time.time() - start_time
         if self.display_logs:
             print(f"Elapsed time to compute the prune_rules: {elapsed_time:.3f} seconds")
-
+        self.minimal_rules_.reverse()
         return self.minimal_rules_
 
     def sorting(self, sorting_method="target_accuracy"):

@@ -495,23 +495,19 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rulecosi_elapsed_time = time.time() - rulecosi_start_time
         rulecosi_time_list.append(rulecosi_elapsed_time)
 
-        if filename == "credit" or filename == "connect-4":
-            RuleFit_time_list.append(0)
-        else:
-            RuleFit_start_time = time.time()
-            ruleFit.fit(X_train_int, y_train_int, feature_names=dataset.feature_names)
-            RuleFit_elapsed_time = time.time() - RuleFit_start_time
-            RuleFit_time_list.append(RuleFit_elapsed_time)
+        RuleFit_start_time = time.time()
+        ruleFit.fit(X_train_int, y_train_int, feature_names=dataset.feature_names)
+        RuleFit_elapsed_time = time.time() - RuleFit_start_time
+        RuleFit_time_list.append(RuleFit_elapsed_time)
 
         # Predict
         y_pred_test_ensemble = ensemble.predict(X_test)
         y_pred_test_rules = rules.predict(X_test, sorting_method=sorting_method)
         y_pred_test_tree = tree.predict(X_test)
+
         y_pred_test_rulecosi = rulecosi.predict(X_test)
-        if filename == "credit" or filename == "connect-4":
-            y_pred_test_RuleFit = []
-        else:
-            y_pred_test_RuleFit = ruleFit.predict(X_test_int)
+
+        y_pred_test_RuleFit = ruleFit.predict(X_test_int)
 
         # DATASET CATEGORIZABLES
         np_array_rules = np.array(y_pred_test_rules)
@@ -521,12 +517,10 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         filtered_y_pred_test_ensemble = np.array(y_pred_test_ensemble)[filter_indices].astype('int64')
         filtered_y_pred_test_tree = np.array(y_pred_test_tree)[filter_indices].astype('int64')
         filtered_y_pred_test_rules = np.array(y_pred_test_rules)[filter_indices].astype('int64')
+
         filtered_y_pred_test_rulecosi = np.array(y_pred_test_rulecosi)[filter_indices].astype('int64')
 
-        if filename == "credit" or filename == "connect-4":
-            filtered_y_pred_test_RuleFit = []
-        else:
-            filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
+        filtered_y_pred_test_RuleFit = np.array(y_pred_test_RuleFit)[filter_indices].astype('int64')
 
         if len(filter_indices) == 0:
             continue
@@ -551,10 +545,7 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         tree_precision_score_list.append(tree_precision_score)
         tree_recall_list.append(tree_recall)
         tree_roc_auc_score_list.append(tree_roc_auc_score)
-        if filename == "credit" or filename == "connect-4":
-            RuleFit_accuracy, RuleFit_f1_score, RuleFit_precision_score, RuleFit_recall, RuleFit_roc_auc_score = 0, 0, 0, 0, 0
-        else:
-            RuleFit_accuracy, RuleFit_f1_score, RuleFit_precision_score, RuleFit_recall, RuleFit_roc_auc_score = \
+        RuleFit_accuracy, RuleFit_f1_score, RuleFit_precision_score, RuleFit_recall, RuleFit_roc_auc_score = \
                 generate_scores(filtered_y_test_int, filtered_y_pred_test_RuleFit)
 
         RuleFit_accuracy_list.append(RuleFit_accuracy)
@@ -571,7 +562,6 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
         rules_precision_score_list.append(rules_precision_score)
         rules_recall_list.append(rules_recall)
         rules_roc_auc_score_list.append(rules_roc_auc_score)
-
         rulecosi_accuracy, rulecosi_f1_score, rulecosi_precision_score, rulecosi_recall, rulecosi_roc_auc_score = \
             generate_scores(filtered_y_test, filtered_y_pred_test_rulecosi)
 
@@ -583,11 +573,7 @@ def kfold_test(X, chi_square_percent_point_function, dataset, min_accuracy_coeff
 
         rules_num_rules_list.append(len(rules.minimal_rules_))
         rulecosi_num_rules_list.append(len(rulecosi.simplified_ruleset_.rules))
-
-        if filename == "credit" or filename == "connect-4":
-            rulefit_num_rules_list.append(0)
-        else:
-            rulefit_num_rules_list.append(len(ruleFit.rules_))
+        rulefit_num_rules_list.append(len(ruleFit.rules_))
 
     return np.array(cobertura_list), \
         np.array(RuleFit_accuracy_list), np.array(RuleFit_f1_score_list), np.array(

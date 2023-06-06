@@ -9,25 +9,22 @@ n_splits = 10
 n_repeats = 3
 chi_square_percent_point_function_list = [0.95, 0.97, 0.99]
 scale_feature_coefficient_list = [0.05]
-scale_feature_coefficient_list = [0.1]
-min_accuracy_coefficient_list = [0.8, 0.9, 0.95]
+min_accuracy_coefficient_list = [0.95]
 # min_number_class_per_node_list = [1, 3, 5, 7, 10]
 min_number_class_per_node_list = [3, 5, 7]
 sorting_method = "target_accuracy"
 
 # CONFIG
-#scale_feature_coefficient_list = [0.01, 0.05, 0.1, 0.2, 0.2, 0.4]
-#min_number_class_per_node_list = [1, 3, 5, 7, 10]
-#min_accuracy_coefficient_list = [0.6,0.85, 0.9, 0.95]
-#
-#dataset_names = [
-#    "divorce",
-#    "kr-vs-kp"
-#]
 
+scale_feature_coefficient_list = [0.01]
+min_number_class_per_node_list = [5]
+chi_square_percent_point_function_list = [0.95]
 
+dataset_names = [
+    "credit"
+]
 path = f'../..'
-results_file_name = f'{path}/Results/battery_test_all_nodes.csv'
+results_file_name = f'{path}/Results/battery_test_all_nodes_credit.csv'
 
 f = open(results_file_name, "w")
 file_header = f'Dataset, scorer, Coverage, DT, RF, RF+RFIT, RF+RFIT num rules, RF+RC, RF+RC num rules, RF+Rules, RF+Rules num rules\n'
